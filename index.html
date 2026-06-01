@@ -14,9 +14,6 @@
   <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
 
   <style>
-    /* ===================================================
-       RESET Y BASE
-    ==================================================== */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -27,7 +24,6 @@
       height: 100vh;
     }
 
-    /* La escena A-Frame ocupa toda la pantalla */
     a-scene {
       position: fixed;
       top: 0; left: 0;
@@ -35,13 +31,13 @@
     }
 
     /* ===================================================
-       OVERLAY DE UI — Superpuesto sobre la cámara AR
+       OVERLAY DE UI
     ==================================================== */
     #ui-overlay {
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      pointer-events: none; /* Deja pasar el toque a la cámara salvo en botones */
+      pointer-events: none;
       z-index: 999;
       display: flex;
       flex-direction: column;
@@ -50,15 +46,12 @@
       padding: 20px 16px;
     }
 
-    /* ===================================================
-       CABECERA
-    ==================================================== */
+    /* CABECERA */
     #header {
       pointer-events: none;
       text-align: center;
       animation: fadeDown 0.8s ease both;
     }
-
     #header h1 {
       font-size: clamp(1rem, 4vw, 1.4rem);
       font-weight: 700;
@@ -67,7 +60,6 @@
       text-transform: uppercase;
       text-shadow: 0 0 20px rgba(0,200,255,0.8), 0 2px 6px rgba(0,0,0,0.9);
     }
-
     #header p {
       margin-top: 4px;
       font-size: clamp(0.65rem, 2.5vw, 0.82rem);
@@ -76,16 +68,83 @@
     }
 
     /* ===================================================
-       PANEL DE BOTONES (menú flotante inferior)
+       TARJETA DE FÓRMULA (anotación HTML superpuesta)
+       Aparece cuando el marcador es detectado
+    ==================================================== */
+    #formula-card {
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(18px) saturate(180%);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 18px;
+      padding: 14px 22px;
+      min-width: 200px;
+      max-width: 280px;
+      text-align: center;
+      opacity: 0;                        /* Oculto hasta detectar marcador */
+      transform: translateY(10px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    /* Visible cuando el marcador está activo */
+    #formula-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #formula-card .fc-nombre {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+    }
+
+    #formula-card .fc-formula {
+      font-size: clamp(1.3rem, 5vw, 1.7rem);
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 0.04em;
+      text-shadow: 0 0 20px currentColor;
+      transition: color 0.4s ease, text-shadow 0.4s ease;
+    }
+
+    #formula-card .fc-variables {
+      font-size: clamp(0.68rem, 2.5vw, 0.78rem);
+      color: rgba(255,255,255,0.6);
+      line-height: 1.6;
+    }
+
+    #formula-card .fc-divider {
+      width: 40px;
+      height: 1px;
+      background: rgba(255,255,255,0.2);
+      margin: 2px 0;
+    }
+
+    #formula-card .fc-ejemplo {
+      font-size: 0.68rem;
+      color: rgba(255,255,255,0.4);
+      font-style: italic;
+    }
+
+    /* ===================================================
+       PANEL DE BOTONES
     ==================================================== */
     #menu {
-      pointer-events: all; /* Activa interacción en esta zona */
+      pointer-events: all;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 10px;
       width: 100%;
-      max-width: 360px;
+      max-width: 400px;
       animation: fadeUp 0.8s ease 0.3s both;
     }
 
@@ -100,20 +159,21 @@
 
     #btn-row {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       width: 100%;
       justify-content: center;
+      flex-wrap: wrap;
     }
 
-    /* Botón base */
     .btn-solido {
       flex: 1;
-      max-width: 110px;
-      padding: 12px 8px;
+      min-width: 72px;
+      max-width: 95px;
+      padding: 11px 6px;
       border: none;
       border-radius: 14px;
       cursor: pointer;
-      font-size: clamp(0.7rem, 2.8vw, 0.85rem);
+      font-size: clamp(0.62rem, 2.5vw, 0.78rem);
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
@@ -127,36 +187,18 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
     }
+    .btn-solido:active { transform: scale(0.93); }
+    .btn-solido .icon  { font-size: 1.4rem; line-height: 1; }
 
-    .btn-solido:active {
-      transform: scale(0.93);
-    }
+    /* Activos por color */
+    .btn-solido.active { background: rgba(0,200,255,0.28); border-color: rgba(0,200,255,0.7); box-shadow: 0 0 0 2px rgba(0,200,255,0.5), 0 4px 24px rgba(0,200,255,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
+    .btn-solido[data-shape="cubo"].active     { background: rgba(255,107,107,0.25); border-color: rgba(255,107,107,0.7); box-shadow: 0 0 0 2px rgba(255,107,107,0.5), 0 4px 24px rgba(255,107,107,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
+    .btn-solido[data-shape="esfera"].active   { background: rgba(107,255,184,0.25); border-color: rgba(107,255,184,0.7); box-shadow: 0 0 0 2px rgba(107,255,184,0.5), 0 4px 24px rgba(107,255,184,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
+    .btn-solido[data-shape="cilindro"].active { background: rgba(184,107,255,0.25); border-color: rgba(184,107,255,0.7); box-shadow: 0 0 0 2px rgba(184,107,255,0.5), 0 4px 24px rgba(184,107,255,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
+    .btn-solido[data-shape="cono"].active     { background: rgba(255,202,107,0.25); border-color: rgba(255,202,107,0.7); box-shadow: 0 0 0 2px rgba(255,202,107,0.5), 0 4px 24px rgba(255,202,107,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
 
-    .btn-solido .icon {
-      font-size: 1.6rem;
-      line-height: 1;
-    }
-
-    /* Estado activo — resalta el botón seleccionado */
-    .btn-solido.active {
-      background: rgba(0, 200, 255, 0.28);
-      border-color: rgba(0, 200, 255, 0.7);
-      box-shadow:
-        0 0 0 2px rgba(0,200,255,0.5),
-        0 4px 24px rgba(0,200,255,0.35),
-        inset 0 1px 0 rgba(255,255,255,0.2);
-    }
-
-    /* Colores de acento por figura */
-    .btn-solido[data-shape="cubo"].active    { --accent: #ff6b6b; background: rgba(255,107,107,0.25); border-color: rgba(255,107,107,0.7); box-shadow: 0 0 0 2px rgba(255,107,107,0.5), 0 4px 24px rgba(255,107,107,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
-    .btn-solido[data-shape="esfera"].active  { --accent: #6bffb8; background: rgba(107,255,184,0.25); border-color: rgba(107,255,184,0.7); box-shadow: 0 0 0 2px rgba(107,255,184,0.5), 0 4px 24px rgba(107,255,184,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
-    .btn-solido[data-shape="cilindro"].active{ --accent: #b86bff; background: rgba(184,107,255,0.25); border-color: rgba(184,107,255,0.7); box-shadow: 0 0 0 2px rgba(184,107,255,0.5), 0 4px 24px rgba(184,107,255,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
-
-    /* ===================================================
-       INDICADOR DE SÓLIDO ACTIVO
-    ==================================================== */
     #active-label {
       font-size: 0.68rem;
       font-weight: 600;
@@ -168,9 +210,7 @@
       transition: color 0.3s ease;
     }
 
-    /* ===================================================
-       ANIMACIONES DE ENTRADA
-    ==================================================== */
+    /* ANIMACIONES */
     @keyframes fadeDown {
       from { opacity: 0; transform: translateY(-20px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -180,41 +220,31 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ===================================================
-       INDICADOR "APUNTA AL MARCADOR HIRO"
-    ==================================================== */
+    /* CROSSHAIR */
     #hint {
       position: fixed;
-      top: 50%;
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
       pointer-events: none;
       z-index: 998;
       animation: pulse 2.5s ease-in-out infinite;
     }
-
     #hint .crosshair {
-      width: 80px;
-      height: 80px;
+      width: 80px; height: 80px;
       border: 2px solid rgba(255,255,255,0.3);
       border-radius: 50%;
       margin: 0 auto 10px;
       position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: flex; align-items: center; justify-content: center;
     }
-
     #hint .crosshair::before,
     #hint .crosshair::after {
-      content: '';
-      position: absolute;
+      content: ''; position: absolute;
       background: rgba(255,255,255,0.3);
     }
     #hint .crosshair::before { width: 1px; height: 40%; }
     #hint .crosshair::after  { width: 40%; height: 1px; }
-
     #hint p {
       font-size: 0.72rem;
       color: rgba(255,255,255,0.45);
@@ -222,7 +252,6 @@
       text-transform: uppercase;
       text-shadow: 0 1px 6px rgba(0,0,0,0.9);
     }
-
     @keyframes pulse {
       0%, 100% { opacity: 0.5; }
       50%       { opacity: 1; }
@@ -234,8 +263,6 @@
 
   <!-- ==================================================
        ESCENA A-FRAME CON AR.JS
-       - embedded: evita el botón VR de A-Frame
-       - arjs: habilita tracking de marcadores con Hiro
   =================================================== -->
   <a-scene
     embedded
@@ -244,140 +271,195 @@
     renderer="logarithmicDepthBuffer: true; precision: medium;"
     loading-screen="enabled: false">
 
-    <!-- Cámara AR — sin controles manuales para no interferir con AR.js -->
     <a-camera-static></a-camera-static>
 
-    <!-- =================================================
+    <!-- ================================================
          MARCADOR HIRO
-         Cuando la cámara lo detecta, los hijos se hacen visibles
-    ================================================== -->
+    ================================================ -->
     <a-marker preset="hiro" id="marcador-hiro">
 
-      <!-- -----------------------------------------------
-           CUBO
-           - box-geometry + wireframe para bordes visibles
-           - animación de rotación en Y (continua)
-      ----------------------------------------------- -->
+      <!-- =============================================
+           CUBO  |  V = a³
+      ============================================= -->
       <a-entity id="solido-cubo" visible="true">
-        <!-- Cara sólida con transparencia para ver el interior -->
-        <a-box
-          position="0 0.6 0"
-          width="0.8" height="0.8" depth="0.8"
-          color="#FF4E4E"
-          opacity="0.88"
+
+        <!-- Sólido -->
+        <a-box position="0 0.6 0" width="0.8" height="0.8" depth="0.8"
+          color="#FF4E4E" opacity="0.88"
           material="side: double; transparent: true;">
-          <!-- Animación de rotación continua (360° en 5 s) -->
-          <a-animation
-            attribute="rotation"
-            from="0 0 0"
-            to="0 360 0"
-            dur="5000"
-            easing="linear"
-            repeat="indefinite">
-          </a-animation>
+          <a-animation attribute="rotation" from="0 0 0" to="0 360 0"
+            dur="5000" easing="linear" repeat="indefinite"></a-animation>
         </a-box>
-        <!-- Wireframe superpuesto para bordes bien definidos -->
-        <a-box
-          position="0 0.6 0"
-          width="0.82" height="0.82" depth="0.82"
-          color="#FF9E9E"
-          opacity="0.6"
+        <!-- Wireframe -->
+        <a-box position="0 0.6 0" width="0.82" height="0.82" depth="0.82"
+          color="#FF9E9E" opacity="0.6"
           material="wireframe: true; side: double;">
-          <a-animation
-            attribute="rotation"
-            from="0 0 0"
-            to="0 360 0"
-            dur="5000"
-            easing="linear"
-            repeat="indefinite">
-          </a-animation>
+          <a-animation attribute="rotation" from="0 0 0" to="0 360 0"
+            dur="5000" easing="linear" repeat="indefinite"></a-animation>
         </a-box>
+
+        <!-- ANOTACIÓN 3D: nombre del sólido -->
+        <a-text value="CUBO"
+          position="0 1.38 0" align="center"
+          color="#FF9E9E" width="1.6"
+          font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" shader="msdf">
+        </a-text>
+
+        <!-- ANOTACIÓN 3D: fórmula principal -->
+        <a-text value="V = a³"
+          position="0 1.18 0" align="center"
+          color="#ffffff" width="2.0"
+          font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" shader="msdf">
+        </a-text>
+
+        <!-- ANOTACIÓN 3D: variable -->
+        <a-text value="a = longitud del lado"
+          position="0 1.02 0" align="center"
+          color="#FFCCCC" width="1.5"
+          font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt" shader="msdf">
+        </a-text>
+
+        <!-- Línea decorativa separadora -->
+        <a-plane position="0 1.1 0" width="0.55" height="0.003"
+          color="#FF9E9E" opacity="0.6"
+          material="side: double;">
+        </a-plane>
+
       </a-entity>
 
-      <!-- -----------------------------------------------
-           ESFERA
-      ----------------------------------------------- -->
+      <!-- =============================================
+           ESFERA  |  V = (4/3)·π·r³
+      ============================================= -->
       <a-entity id="solido-esfera" visible="false">
-        <a-sphere
-          position="0 0.65 0"
-          radius="0.45"
-          color="#4EFFB0"
-          opacity="0.88"
+
+        <a-sphere position="0 0.65 0" radius="0.45"
+          color="#4EFFB0" opacity="0.88"
           material="side: double; transparent: true;"
-          segments-width="18"
-          segments-height="18">
-          <a-animation
-            attribute="rotation"
-            from="0 0 0"
-            to="360 360 0"
-            dur="6000"
-            easing="linear"
-            repeat="indefinite">
-          </a-animation>
+          segments-width="18" segments-height="18">
+          <a-animation attribute="rotation" from="0 0 0" to="360 360 0"
+            dur="6000" easing="linear" repeat="indefinite"></a-animation>
         </a-sphere>
-        <!-- Wireframe de esfera -->
-        <a-sphere
-          position="0 0.65 0"
-          radius="0.47"
-          color="#9EFFD8"
-          opacity="0.5"
+        <a-sphere position="0 0.65 0" radius="0.47"
+          color="#9EFFD8" opacity="0.5"
           material="wireframe: true; side: double;"
-          segments-width="10"
-          segments-height="10">
-          <a-animation
-            attribute="rotation"
-            from="0 0 0"
-            to="360 360 0"
-            dur="6000"
-            easing="linear"
-            repeat="indefinite">
-          </a-animation>
+          segments-width="10" segments-height="10">
+          <a-animation attribute="rotation" from="0 0 0" to="360 360 0"
+            dur="6000" easing="linear" repeat="indefinite"></a-animation>
         </a-sphere>
+
+        <!-- ANOTACIÓN 3D -->
+        <a-text value="ESFERA"
+          position="0 1.38 0" align="center"
+          color="#9EFFD8" width="1.6"
+          font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" shader="msdf">
+        </a-text>
+        <a-text value="V = (4/3) · π · r³"
+          position="0 1.18 0" align="center"
+          color="#ffffff" width="2.2"
+          font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" shader="msdf">
+        </a-text>
+        <a-text value="r = radio"
+          position="0 1.02 0" align="center"
+          color="#CCFFE8" width="1.5"
+          font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt" shader="msdf">
+        </a-text>
+        <a-plane position="0 1.1 0" width="0.7" height="0.003"
+          color="#9EFFD8" opacity="0.6"
+          material="side: double;">
+        </a-plane>
+
       </a-entity>
 
-      <!-- -----------------------------------------------
-           CILINDRO
-      ----------------------------------------------- -->
+      <!-- =============================================
+           CILINDRO  |  V = π·r²·h
+      ============================================= -->
       <a-entity id="solido-cilindro" visible="false">
-        <a-cylinder
-          position="0 0.6 0"
-          radius="0.35"
-          height="0.85"
-          color="#B84EFF"
-          opacity="0.88"
+
+        <a-cylinder position="0 0.6 0" radius="0.35" height="0.85"
+          color="#B84EFF" opacity="0.88"
           material="side: double; transparent: true;"
           segments-radial="24">
-          <a-animation
-            attribute="rotation"
-            from="0 0 15"
-            to="0 360 15"
-            dur="5500"
-            easing="linear"
-            repeat="indefinite">
-          </a-animation>
+          <a-animation attribute="rotation" from="0 0 15" to="0 360 15"
+            dur="5500" easing="linear" repeat="indefinite"></a-animation>
         </a-cylinder>
-        <!-- Wireframe de cilindro -->
-        <a-cylinder
-          position="0 0.6 0"
-          radius="0.37"
-          height="0.87"
-          color="#D89EFF"
-          opacity="0.5"
+        <a-cylinder position="0 0.6 0" radius="0.37" height="0.87"
+          color="#D89EFF" opacity="0.5"
           material="wireframe: true; side: double;"
           segments-radial="12">
-          <a-animation
-            attribute="rotation"
-            from="0 0 15"
-            to="0 360 15"
-            dur="5500"
-            easing="linear"
-            repeat="indefinite">
-          </a-animation>
+          <a-animation attribute="rotation" from="0 0 15" to="0 360 15"
+            dur="5500" easing="linear" repeat="indefinite"></a-animation>
         </a-cylinder>
+
+        <!-- ANOTACIÓN 3D -->
+        <a-text value="CILINDRO"
+          position="0 1.38 0" align="center"
+          color="#D89EFF" width="1.6"
+          font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" shader="msdf">
+        </a-text>
+        <a-text value="V = π · r² · h"
+          position="0 1.18 0" align="center"
+          color="#ffffff" width="2.0"
+          font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" shader="msdf">
+        </a-text>
+        <a-text value="r = radio   h = altura"
+          position="0 1.02 0" align="center"
+          color="#E8CCFF" width="1.6"
+          font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt" shader="msdf">
+        </a-text>
+        <a-plane position="0 1.1 0" width="0.58" height="0.003"
+          color="#D89EFF" opacity="0.6"
+          material="side: double;">
+        </a-plane>
+
       </a-entity>
 
-      <!-- Luz ambiental y puntual para realzar los colores -->
-      <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
+      <!-- =============================================
+           CONO  |  V = (1/3)·π·r²·h
+      ============================================= -->
+      <a-entity id="solido-cono" visible="false">
+
+        <a-cylinder position="0 0.6 0"
+          radius-bottom="0.42" radius-top="0" height="0.9"
+          color="#FFCA4E" opacity="0.88"
+          material="side: double; transparent: true;"
+          segments-radial="28" open-ended="false">
+          <a-animation attribute="rotation" from="0 0 0" to="0 360 0"
+            dur="5000" easing="linear" repeat="indefinite"></a-animation>
+        </a-cylinder>
+        <a-cylinder position="0 0.6 0"
+          radius-bottom="0.44" radius-top="0.01" height="0.92"
+          color="#FFE59E" opacity="0.5"
+          material="wireframe: true; side: double;"
+          segments-radial="14" open-ended="false">
+          <a-animation attribute="rotation" from="0 0 0" to="0 360 0"
+            dur="5000" easing="linear" repeat="indefinite"></a-animation>
+        </a-cylinder>
+
+        <!-- ANOTACIÓN 3D -->
+        <a-text value="CONO"
+          position="0 1.38 0" align="center"
+          color="#FFE59E" width="1.6"
+          font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" shader="msdf">
+        </a-text>
+        <a-text value="V = (1/3) · π · r² · h"
+          position="0 1.18 0" align="center"
+          color="#ffffff" width="2.3"
+          font="https://cdn.aframe.io/fonts/Exo2Bold.fnt" shader="msdf">
+        </a-text>
+        <a-text value="r = radio base   h = altura"
+          position="0 1.02 0" align="center"
+          color="#FFF0CC" width="1.7"
+          font="https://cdn.aframe.io/fonts/Exo2SemiBold.fnt" shader="msdf">
+        </a-text>
+        <a-plane position="0 1.1 0" width="0.72" height="0.003"
+          color="#FFE59E" opacity="0.6"
+          material="side: double;">
+        </a-plane>
+
+      </a-entity>
+
+      <!-- Luces -->
+      <a-light type="ambient"  color="#ffffff" intensity="0.6"></a-light>
       <a-light type="point" position="1 2 1" color="#ffffff" intensity="1.2"></a-light>
 
     </a-marker>
@@ -385,7 +467,7 @@
   </a-scene>
 
   <!-- ==================================================
-       OVERLAY DE INTERFAZ (HTML/CSS sobre la cámara)
+       OVERLAY HTML
   =================================================== -->
   <div id="ui-overlay">
 
@@ -395,129 +477,174 @@
       <p>Apunta al marcador HIRO con la cámara</p>
     </div>
 
-    <!-- Crosshair central de ayuda -->
+    <!-- Crosshair -->
     <div id="hint">
       <div class="crosshair"></div>
       <p>Marcador Hiro</p>
     </div>
 
-    <!-- Menú de selección de figuras -->
+    <!-- =============================================
+         TARJETA DE FÓRMULA (anotación HTML 2D)
+         Se actualiza al cambiar de sólido y aparece
+         cuando el marcador es detectado
+    ============================================= -->
+    <div id="formula-card">
+      <span class="fc-nombre" id="fc-nombre">CUBO</span>
+      <div class="fc-divider"></div>
+      <span class="fc-formula" id="fc-formula">V = a³</span>
+      <div class="fc-divider"></div>
+      <span class="fc-variables" id="fc-variables">a = longitud del lado</span>
+      <span class="fc-ejemplo" id="fc-ejemplo">Si a = 3 cm → V = 27 cm³</span>
+    </div>
+
+    <!-- Menú de figuras -->
     <div id="menu">
       <span id="menu-label">Seleccionar sólido</span>
-
       <div id="btn-row">
-        <!-- Botón Cubo — activo por defecto -->
         <button class="btn-solido active" data-shape="cubo" onclick="cambiarSolido('cubo')">
-          <span class="icon">⬛</span>
-          Cubo
+          <span class="icon">⬛</span>Cubo
         </button>
-
-        <!-- Botón Esfera -->
         <button class="btn-solido" data-shape="esfera" onclick="cambiarSolido('esfera')">
-          <span class="icon">🔵</span>
-          Esfera
+          <span class="icon">🔵</span>Esfera
         </button>
-
-        <!-- Botón Cilindro -->
         <button class="btn-solido" data-shape="cilindro" onclick="cambiarSolido('cilindro')">
-          <span class="icon">🟣</span>
-          Cilindro
+          <span class="icon">🟣</span>Cilindro
+        </button>
+        <button class="btn-solido" data-shape="cono" onclick="cambiarSolido('cono')">
+          <span class="icon">🔺</span>Cono
         </button>
       </div>
-
       <span id="active-label">Mostrando: CUBO</span>
     </div>
 
   </div>
 
   <!-- ==================================================
-       JAVASCRIPT — Lógica de cambio de sólidos
+       JAVASCRIPT
   =================================================== -->
   <script>
     /**
-     * Mapa de sólidos disponibles.
-     * Clave: identificador usado en data-shape y en el HTML del marcador.
-     * Valor: { elementId, label }
-     *   - elementId → id del <a-entity> dentro de <a-marker>
-     *   - label      → texto amigable para el indicador activo
+     * SOLIDOS — mapa de datos de cada figura.
+     * Cada entrada incluye:
+     *  - elementId  : id del <a-entity> en la escena AR
+     *  - label      : nombre para el indicador inferior
+     *  - fcNombre   : título en la tarjeta de fórmula
+     *  - fcFormula  : fórmula de volumen (texto)
+     *  - fcVariables: descripción de variables
+     *  - fcEjemplo  : ejemplo numérico concreto
+     *  - fcColor    : color de acento para la fórmula
      */
     const SOLIDOS = {
-      cubo:     { elementId: 'solido-cubo',     label: 'CUBO' },
-      esfera:   { elementId: 'solido-esfera',   label: 'ESFERA' },
-      cilindro: { elementId: 'solido-cilindro', label: 'CILINDRO' },
+      cubo: {
+        elementId:   'solido-cubo',
+        label:       'CUBO',
+        fcNombre:    'CUBO',
+        fcFormula:   'V = a³',
+        fcVariables: 'a = longitud del lado',
+        fcEjemplo:   'Si a = 3 cm  →  V = 27 cm³',
+        fcColor:     '#FF9E9E',
+      },
+      esfera: {
+        elementId:   'solido-esfera',
+        label:       'ESFERA',
+        fcNombre:    'ESFERA',
+        fcFormula:   'V = (4/3) · π · r³',
+        fcVariables: 'r = radio de la esfera',
+        fcEjemplo:   'Si r = 3 cm  →  V ≈ 113.1 cm³',
+        fcColor:     '#9EFFD8',
+      },
+      cilindro: {
+        elementId:   'solido-cilindro',
+        label:       'CILINDRO',
+        fcNombre:    'CILINDRO',
+        fcFormula:   'V = π · r² · h',
+        fcVariables: 'r = radio base  |  h = altura',
+        fcEjemplo:   'r=2, h=5 cm  →  V ≈ 62.8 cm³',
+        fcColor:     '#D89EFF',
+      },
+      cono: {
+        elementId:   'solido-cono',
+        label:       'CONO',
+        fcNombre:    'CONO',
+        fcFormula:   'V = (1/3) · π · r² · h',
+        fcVariables: 'r = radio base  |  h = altura',
+        fcEjemplo:   'r=3, h=6 cm  →  V ≈ 56.5 cm³',
+        fcColor:     '#FFE59E',
+      },
     };
 
-    /** Nombre del sólido actualmente visible */
     let solidoActual = 'cubo';
 
     /**
      * cambiarSolido(nombre)
-     * ---------------------------------------------------
-     * 1. Oculta el sólido actualmente visible (visible="false")
-     * 2. Muestra el sólido solicitado (visible="true")
-     * 3. Actualiza el estado visual de los botones del menú
-     * 4. Actualiza el texto del indicador inferior
-     *
-     * @param {string} nombre - Clave del sólido en SOLIDOS
+     * ----------------------------------------
+     * 1. Oculta el <a-entity> anterior
+     * 2. Muestra el nuevo <a-entity>
+     * 3. Actualiza botones activos
+     * 4. Actualiza indicador de texto
+     * 5. Actualiza la tarjeta de fórmula HTML
      */
     function cambiarSolido(nombre) {
-      // Si ya está activo, no hacemos nada
       if (nombre === solidoActual) return;
 
-      // -- Paso 1: Ocultar el sólido anterior --
-      const entidadAnterior = document.getElementById(SOLIDOS[solidoActual].elementId);
-      if (entidadAnterior) {
-        entidadAnterior.setAttribute('visible', 'false');
-      }
+      // 1. Ocultar anterior
+      const anterior = document.getElementById(SOLIDOS[solidoActual].elementId);
+      if (anterior) anterior.setAttribute('visible', 'false');
 
-      // -- Paso 2: Mostrar el nuevo sólido --
-      const entidadNueva = document.getElementById(SOLIDOS[nombre].elementId);
-      if (entidadNueva) {
-        entidadNueva.setAttribute('visible', 'true');
-      }
+      // 2. Mostrar nuevo
+      const nuevo = document.getElementById(SOLIDOS[nombre].elementId);
+      if (nuevo) nuevo.setAttribute('visible', 'true');
 
-      // -- Paso 3: Actualizar estilos de botones --
-      // Quitar clase "active" de todos
-      document.querySelectorAll('.btn-solido').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      // Añadir clase "active" al botón pulsado
+      // 3. Botones
+      document.querySelectorAll('.btn-solido').forEach(b => b.classList.remove('active'));
       const btnActivo = document.querySelector(`.btn-solido[data-shape="${nombre}"]`);
       if (btnActivo) {
         btnActivo.classList.add('active');
-        // Pequeña animación de feedback táctil
         btnActivo.style.transform = 'scale(0.92)';
         setTimeout(() => { btnActivo.style.transform = ''; }, 150);
       }
 
-      // -- Paso 4: Actualizar indicador de texto --
+      // 4. Indicador
       document.getElementById('active-label').textContent =
         `Mostrando: ${SOLIDOS[nombre].label}`;
 
-      // Guardar el estado actual
+      // 5. Actualizar tarjeta de fórmula
+      const datos = SOLIDOS[nombre];
+      document.getElementById('fc-nombre').textContent    = datos.fcNombre;
+      document.getElementById('fc-formula').textContent   = datos.fcFormula;
+      document.getElementById('fc-variables').textContent = datos.fcVariables;
+      document.getElementById('fc-ejemplo').textContent   = datos.fcEjemplo;
+      // Cambiar color de acento de la fórmula
+      document.getElementById('fc-formula').style.color      = datos.fcColor;
+      document.getElementById('fc-formula').style.textShadow = `0 0 18px ${datos.fcColor}`;
+
       solidoActual = nombre;
     }
 
-    /* -------------------------------------------------------
-       Feedback visual: ocultar el crosshair cuando el marcador
-       es detectado y volver a mostrarlo cuando se pierde.
-       Usa los eventos de AR.js: markerFound / markerLost
-    ------------------------------------------------------- */
+    /* -------------------------------------------------
+       Mostrar / ocultar tarjeta y crosshair
+       según si el marcador está en cámara o no
+    ------------------------------------------------- */
     document.addEventListener('DOMContentLoaded', () => {
-      const marcador = document.getElementById('marcador-hiro');
-      const hint = document.getElementById('hint');
+      const marcador    = document.getElementById('marcador-hiro');
+      const hint        = document.getElementById('hint');
+      const formulaCard = document.getElementById('formula-card');
 
       if (marcador) {
-        // Marcador encontrado → ocultar guía central
         marcador.addEventListener('markerFound', () => {
-          hint.style.opacity = '0';
+          // Ocultar guía central
+          hint.style.opacity    = '0';
           hint.style.transition = 'opacity 0.5s ease';
+          // Mostrar tarjeta de fórmula
+          formulaCard.classList.add('visible');
         });
 
-        // Marcador perdido → mostrar guía central
         marcador.addEventListener('markerLost', () => {
-          hint.style.opacity = '1';
+          // Mostrar guía central
+          hint.style.opacity    = '1';
           hint.style.transition = 'opacity 0.5s ease';
+          // Ocultar tarjeta de fórmula
+          formulaCard.classList.remove('visible');
         });
       }
     });
