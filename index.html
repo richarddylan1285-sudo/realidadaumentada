@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>RA Sólidos Geométricos</title>
+
+  <!-- =====================================================
+       LIBRERÍAS PRINCIPALES
+       - A-Frame 1.5.0: motor de escenas 3D/WebXR
+       - AR.js 3.4.5: tracking de marcadores con WebRTC
+  ====================================================== -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    /* ===================================================
+       RESET Y BASE
+    ==================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #000;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* La escena A-Frame ocupa toda la pantalla */
+    a-scene {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+
+    /* ===================================================
+       OVERLAY DE UI — Superpuesto sobre la cámara AR
+    ==================================================== */
+    #ui-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; /* Deja pasar el toque a la cámara salvo en botones */
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 16px;
+    }
+
+    /* ===================================================
+       CABECERA
+    ==================================================== */
+    #header {
+      pointer-events: none;
+      text-align: center;
+      animation: fadeDown 0.8s ease both;
+    }
+
+    #header h1 {
+      font-size: clamp(1rem, 4vw, 1.4rem);
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      text-shadow: 0 0 20px rgba(0,200,255,0.8), 0 2px 6px rgba(0,0,0,0.9);
+    }
+
+    #header p {
+      margin-top: 4px;
+      font-size: clamp(0.65rem, 2.5vw, 0.82rem);
+      color: rgba(255,255,255,0.65);
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+
+    /* ===================================================
+       PANEL DE BOTONES (menú flotante inferior)
+    ==================================================== */
+    #menu {
+      pointer-events: all; /* Activa interacción en esta zona */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      max-width: 360px;
+      animation: fadeUp 0.8s ease 0.3s both;
+    }
+
+    #menu-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+      text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+    }
+
+    #btn-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    /* Botón base */
+    .btn-solido {
+      flex: 1;
+      max-width: 110px;
+      padding: 12px 8px;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: clamp(0.7rem, 2.8vw, 0.85rem);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #fff;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(14px) saturate(180%);
+      -webkit-backdrop-filter: blur(14px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .btn-solido:active {
+      transform: scale(0.93);
+    }
+
+    .btn-solido .icon {
+      font-size: 1.6rem;
+      line-height: 1;
+    }
+
+    /* Estado activo — resalta el botón seleccionado */
+    .btn-solido.active {
+      background: rgba(0, 200, 255, 0.28);
+      border-color: rgba(0, 200, 255, 0.7);
+      box-shadow:
+        0 0 0 2px rgba(0,200,255,0.5),
+        0 4px 24px rgba(0,200,255,0.35),
+        inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    /* Colores de acento por figura */
+    .btn-solido[data-shape="cubo"].active    { --accent: #ff6b6b; background: rgba(255,107,107,0.25); border-color: rgba(255,107,107,0.7); box-shadow: 0 0 0 2px rgba(255,107,107,0.5), 0 4px 24px rgba(255,107,107,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
+    .btn-solido[data-shape="esfera"].active  { --accent: #6bffb8; background: rgba(107,255,184,0.25); border-color: rgba(107,255,184,0.7); box-shadow: 0 0 0 2px rgba(107,255,184,0.5), 0 4px 24px rgba(107,255,184,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
+    .btn-solido[data-shape="cilindro"].active{ --accent: #b86bff; background: rgba(184,107,255,0.25); border-color: rgba(184,107,255,0.7); box-shadow: 0 0 0 2px rgba(184,107,255,0.5), 0 4px 24px rgba(184,107,255,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
+
+    /* ===================================================
+       INDICADOR DE SÓLIDO ACTIVO
+    ==================================================== */
+    #active-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.1em;
+      text-align: center;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      min-height: 1.2em;
+      transition: color 0.3s ease;
+    }
+
+    /* ===================================================
+       ANIMACIONES DE ENTRADA
+    ==================================================== */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===================================================
+       INDICADOR "APUNTA AL MARCADOR HIRO"
+    ==================================================== */
+    #hint {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+      z-index: 998;
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+
+    #hint .crosshair {
+      width: 80px;
+      height: 80px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      margin: 0 auto 10px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #hint .crosshair::before,
+    #hint .crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.3);
+    }
+    #hint .crosshair::before { width: 1px; height: 40%; }
+    #hint .crosshair::after  { width: 40%; height: 1px; }
+
+    #hint p {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50%       { opacity: 1; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ==================================================
+       ESCENA A-FRAME CON AR.JS
+       - embedded: evita el botón VR de A-Frame
+       - arjs: habilita tracking de marcadores con Hiro
+  =================================================== -->
+  <a-scene
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+    vr-mode-ui="enabled: false"
+    renderer="logarithmicDepthBuffer: true; precision: medium;"
+    loading-screen="enabled: false">
+
+    <!-- Cámara AR — sin controles manuales para no interferir con AR.js -->
+    <a-camera-static></a-camera-static>
+
+    <!-- =================================================
+         MARCADOR HIRO
+         Cuando la cámara lo detecta, los hijos se hacen visibles
+    ================================================== -->
+    <a-marker preset="hiro" id="marcador-hiro">
+
+      <!-- -----------------------------------------------
+           CUBO
+           - box-geometry + wireframe para bordes visibles
+           - animación de rotación en Y (continua)
+      ----------------------------------------------- -->
+      <a-entity id="solido-cubo" visible="true">
+        <!-- Cara sólida con transparencia para ver el interior -->
+        <a-box
+          position="0 0.6 0"
+          width="0.8" height="0.8" depth="0.8"
+          color="#FF4E4E"
+          opacity="0.88"
+          material="side: double; transparent: true;">
+          <!-- Animación de rotación continua (360° en 5 s) -->
+          <a-animation
+            attribute="rotation"
+            from="0 0 0"
+            to="0 360 0"
+            dur="5000"
+            easing="linear"
+            repeat="indefinite">
+          </a-animation>
+        </a-box>
+        <!-- Wireframe superpuesto para bordes bien definidos -->
+        <a-box
+          position="0 0.6 0"
+          width="0.82" height="0.82" depth="0.82"
+          color="#FF9E9E"
+          opacity="0.6"
+          material="wireframe: true; side: double;">
+          <a-animation
+            attribute="rotation"
+            from="0 0 0"
+            to="0 360 0"
+            dur="5000"
+            easing="linear"
+            repeat="indefinite">
+          </a-animation>
+        </a-box>
+      </a-entity>
+
+      <!-- -----------------------------------------------
+           ESFERA
+      ----------------------------------------------- -->
+      <a-entity id="solido-esfera" visible="false">
+        <a-sphere
+          position="0 0.65 0"
+          radius="0.45"
+          color="#4EFFB0"
+          opacity="0.88"
+          material="side: double; transparent: true;"
+          segments-width="18"
+          segments-height="18">
+          <a-animation
+            attribute="rotation"
+            from="0 0 0"
+            to="360 360 0"
+            dur="6000"
+            easing="linear"
+            repeat="indefinite">
+          </a-animation>
+        </a-sphere>
+        <!-- Wireframe de esfera -->
+        <a-sphere
+          position="0 0.65 0"
+          radius="0.47"
+          color="#9EFFD8"
+          opacity="0.5"
+          material="wireframe: true; side: double;"
+          segments-width="10"
+          segments-height="10">
+          <a-animation
+            attribute="rotation"
+            from="0 0 0"
+            to="360 360 0"
+            dur="6000"
+            easing="linear"
+            repeat="indefinite">
+          </a-animation>
+        </a-sphere>
+      </a-entity>
+
+      <!-- -----------------------------------------------
+           CILINDRO
+      ----------------------------------------------- -->
+      <a-entity id="solido-cilindro" visible="false">
+        <a-cylinder
+          position="0 0.6 0"
+          radius="0.35"
+          height="0.85"
+          color="#B84EFF"
+          opacity="0.88"
+          material="side: double; transparent: true;"
+          segments-radial="24">
+          <a-animation
+            attribute="rotation"
+            from="0 0 15"
+            to="0 360 15"
+            dur="5500"
+            easing="linear"
+            repeat="indefinite">
+          </a-animation>
+        </a-cylinder>
+        <!-- Wireframe de cilindro -->
+        <a-cylinder
+          position="0 0.6 0"
+          radius="0.37"
+          height="0.87"
+          color="#D89EFF"
+          opacity="0.5"
+          material="wireframe: true; side: double;"
+          segments-radial="12">
+          <a-animation
+            attribute="rotation"
+            from="0 0 15"
+            to="0 360 15"
+            dur="5500"
+            easing="linear"
+            repeat="indefinite">
+          </a-animation>
+        </a-cylinder>
+      </a-entity>
+
+      <!-- Luz ambiental y puntual para realzar los colores -->
+      <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
+      <a-light type="point" position="1 2 1" color="#ffffff" intensity="1.2"></a-light>
+
+    </a-marker>
+
+  </a-scene>
+
+  <!-- ==================================================
+       OVERLAY DE INTERFAZ (HTML/CSS sobre la cámara)
+  =================================================== -->
+  <div id="ui-overlay">
+
+    <!-- Cabecera -->
+    <div id="header">
+      <h1>RA · Sólidos Geométricos</h1>
+      <p>Apunta al marcador HIRO con la cámara</p>
+    </div>
+
+    <!-- Crosshair central de ayuda -->
+    <div id="hint">
+      <div class="crosshair"></div>
+      <p>Marcador Hiro</p>
+    </div>
+
+    <!-- Menú de selección de figuras -->
+    <div id="menu">
+      <span id="menu-label">Seleccionar sólido</span>
+
+      <div id="btn-row">
+        <!-- Botón Cubo — activo por defecto -->
+        <button class="btn-solido active" data-shape="cubo" onclick="cambiarSolido('cubo')">
+          <span class="icon">⬛</span>
+          Cubo
+        </button>
+
+        <!-- Botón Esfera -->
+        <button class="btn-solido" data-shape="esfera" onclick="cambiarSolido('esfera')">
+          <span class="icon">🔵</span>
+          Esfera
+        </button>
+
+        <!-- Botón Cilindro -->
+        <button class="btn-solido" data-shape="cilindro" onclick="cambiarSolido('cilindro')">
+          <span class="icon">🟣</span>
+          Cilindro
+        </button>
+      </div>
+
+      <span id="active-label">Mostrando: CUBO</span>
+    </div>
+
+  </div>
+
+  <!-- ==================================================
+       JAVASCRIPT — Lógica de cambio de sólidos
+  =================================================== -->
+  <script>
+    /**
+     * Mapa de sólidos disponibles.
+     * Clave: identificador usado en data-shape y en el HTML del marcador.
+     * Valor: { elementId, label }
+     *   - elementId → id del <a-entity> dentro de <a-marker>
+     *   - label      → texto amigable para el indicador activo
+     */
+    const SOLIDOS = {
+      cubo:     { elementId: 'solido-cubo',     label: 'CUBO' },
+      esfera:   { elementId: 'solido-esfera',   label: 'ESFERA' },
+      cilindro: { elementId: 'solido-cilindro', label: 'CILINDRO' },
+    };
+
+    /** Nombre del sólido actualmente visible */
+    let solidoActual = 'cubo';
+
+    /**
+     * cambiarSolido(nombre)
+     * ---------------------------------------------------
+     * 1. Oculta el sólido actualmente visible (visible="false")
+     * 2. Muestra el sólido solicitado (visible="true")
+     * 3. Actualiza el estado visual de los botones del menú
+     * 4. Actualiza el texto del indicador inferior
+     *
+     * @param {string} nombre - Clave del sólido en SOLIDOS
+     */
+    function cambiarSolido(nombre) {
+      // Si ya está activo, no hacemos nada
+      if (nombre === solidoActual) return;
+
+      // -- Paso 1: Ocultar el sólido anterior --
+      const entidadAnterior = document.getElementById(SOLIDOS[solidoActual].elementId);
+      if (entidadAnterior) {
+        entidadAnterior.setAttribute('visible', 'false');
+      }
+
+      // -- Paso 2: Mostrar el nuevo sólido --
+      const entidadNueva = document.getElementById(SOLIDOS[nombre].elementId);
+      if (entidadNueva) {
+        entidadNueva.setAttribute('visible', 'true');
+      }
+
+      // -- Paso 3: Actualizar estilos de botones --
+      // Quitar clase "active" de todos
+      document.querySelectorAll('.btn-solido').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      // Añadir clase "active" al botón pulsado
+      const btnActivo = document.querySelector(`.btn-solido[data-shape="${nombre}"]`);
+      if (btnActivo) {
+        btnActivo.classList.add('active');
+        // Pequeña animación de feedback táctil
+        btnActivo.style.transform = 'scale(0.92)';
+        setTimeout(() => { btnActivo.style.transform = ''; }, 150);
+      }
+
+      // -- Paso 4: Actualizar indicador de texto --
+      document.getElementById('active-label').textContent =
+        `Mostrando: ${SOLIDOS[nombre].label}`;
+
+      // Guardar el estado actual
+      solidoActual = nombre;
+    }
+
+    /* -------------------------------------------------------
+       Feedback visual: ocultar el crosshair cuando el marcador
+       es detectado y volver a mostrarlo cuando se pierde.
+       Usa los eventos de AR.js: markerFound / markerLost
+    ------------------------------------------------------- */
+    document.addEventListener('DOMContentLoaded', () => {
+      const marcador = document.getElementById('marcador-hiro');
+      const hint = document.getElementById('hint');
+
+      if (marcador) {
+        // Marcador encontrado → ocultar guía central
+        marcador.addEventListener('markerFound', () => {
+          hint.style.opacity = '0';
+          hint.style.transition = 'opacity 0.5s ease';
+        });
+
+        // Marcador perdido → mostrar guía central
+        marcador.addEventListener('markerLost', () => {
+          hint.style.opacity = '1';
+          hint.style.transition = 'opacity 0.5s ease';
+        });
+      }
+    });
+  </script>
+
+</body>
+</html>
