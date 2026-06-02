@@ -5,60 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <title>RA Escolar: Sólidos Geométricos</title>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.2.0/aframe.min.js"></script>
-    <script src="https://raweps.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
     <style>
-        /* Estilos generales para limpiar la interfaz del navegador */
         body, html {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: Arial, sans-serif;
             width: 100%;
             height: 100%;
         }
 
-        /* Contenedor del Menú Flotante e Interactivo */
+        /* Contenedor del Menú Flotante */
         #menu-container {
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 9999; /* Asegura que la UI quede siempre sobre la cámara de RA */
+            z-index: 9999; /* Obliga a la UI a estar por encima del video de la cámara */
             width: 90%;
             max-width: 500px;
-            background: rgba(25ver, 25, 25, 0.85);
-            backdrop-filter: blur(10px); /* Efecto esmerilado moderno */
+            background: rgba(25, 25, 25, 0.85);
+            backdrop-filter: blur(10px);
             border-radius: 15px;
             padding: 12px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            border: 1px solid rgba(255, 255, 255, 0.18);
             box-sizing: border-box;
-            
-            /* REQUISITO DE ADAPTABILIDAD Y SCROLL RESPONSIVO */
-            /* Se establece una disposición en fila horizontal con scroll automático x si desborda */
             display: flex;
             flex-direction: row;
             gap: 10px;
             overflow-x: auto; 
             overflow-y: hidden;
             white-space: nowrap;
-            
-            /* Suavizado de scroll en iOS y barras de navegación */
             -webkit-overflow-scrolling: touch;
         }
 
-        /* Estilización de la barra de scroll para que no obstruya la vista */
-        #menu-container::-webkit-scrollbar {
-            height: 6px;
-        }
-        #menu-container::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-        }
-
-        /* Botones del Menú */
         .btn-solido {
             background: linear-gradient(135deg, #2c3e50, #3498db);
             color: #ffffff;
@@ -68,47 +50,18 @@
             font-weight: bold;
             border-radius: 8px;
             cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            flex: 0 0 auto; /* Impide que los botones se encojan dentro del flexbox */
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            flex: 0 0 auto;
             min-width: 100px;
             text-align: center;
         }
 
-        /* Estado activo o seleccionado */
         .btn-solido.active {
             background: linear-gradient(135deg, #e74c3c, #f1c40f);
-            box-shadow: 0 0 10px #f1c40f;
-            transform: scale(1.05);
-        }
-
-        .btn-solido:focus {
-            outline: none;
-        }
-
-        /* Título educativo discreto superior */
-        #header-title {
-            position: fixed;
-            top: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            letter-spacing: 1px;
-            pointer-events: none; /* No interfiere con clics */
-            text-align: center;
-            width: 80%;
-            max-width: 300px;
         }
     </style>
 </head>
-<body>
 
-    <div id="header-title">Geometría Escolar RA</div>
+<body style="margin: 0px; overflow: hidden;">
 
     <div id="menu-container">
         <button class="btn-solido active" onclick="cambiarSolido('cubo')">Cubo</button>
@@ -118,24 +71,71 @@
     </div>
 
     <a-scene embedded 
-             arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;" 
+             arjs="sourceType: webcam; sourceWidth:1280; sourceHeight:720; displayWidth: 1280; displayHeight: 720; debugUIEnabled: false;" 
              vr-mode-ui="enabled: false">
         
         <a-marker preset="hiro">
-
-            <a-entity animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
+            <a-entity id="grupo-rotacion" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
                 
                 <a-entity id="cubo" visible="true">
-                    <a-box position="0 0.5 0" scale="0.4 0.4 0.4" color="#00C853" shadow="cast: true">
+                    <a-box position="0 0.5 0" scale="0.4 0.4 0.4" color="#00C853">
                         <a-box scale="1.01 1.01 1.01" material="wireframe: true; wireframeLineWidth: 3; color: #FFFFFF"></a-box>
                     </a-box>
                 </a-entity>
 
                 <a-entity id="esfera" visible="false">
-                    <a-sphere position="0 0.5 0" radius="0.25" color="#FFea00" shadow="cast: true">
+                    <a-sphere position="0 0.5 0" radius="0.25" color="#FFea00">
                         <a-sphere radius="0.251" material="wireframe: true; wireframeLineWidth: 1.5; color: #000000"></a-sphere>
                     </a-sphere>
                 </a-entity>
 
                 <a-entity id="cilindro" visible="false">
-                    <a-cylinder position="0 0.5 0"
+                    <a-cylinder position="0 0.5 0" radius="0.2" height="0.5" color="#00B0FF">
+                        <a-cylinder radius="0.201" height="0.501" material="wireframe: true; wireframeLineWidth: 2; color: #FFFFFF"></a-cylinder>
+                    </a-cylinder>
+                </a-entity>
+
+                <a-entity id="cono" visible="false">
+                    <a-cone position="0 0.5 0" radius-bottom="0.25" radius-top="0" height="0.5" color="#AA00FF">
+                        <a-cone radius-bottom="0.251" radius-top="0" height="0.501" material="wireframe: true; wireframeLineWidth: 2; color: #FFFFFF"></a-cone>
+                    </a-cone>
+                </a-entity>
+
+            </a-entity>
+        </a-marker>
+
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+        const solidosIds = ['cubo', 'esfera', 'cilindro', 'cono'];
+
+        function cambiarSolido(idSeleccionado) {
+            solidosIds.forEach(id => {
+                const elemento = document.getElementById(id);
+                if (elemento) {
+                    elemento.setAttribute('visible', id === idSeleccionado ? 'true' : 'false');
+                }
+            });
+
+            const botones = document.querySelectorAll('.btn-solido');
+            botones.forEach(boton => {
+                boton.classList.remove('active');
+                if (boton.getAttribute('onclick').includes(idSeleccionado)) {
+                    boton.classList.add('active');
+                    boton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+            });
+        }
+
+        // CONTROL DE SEGURIDAD EXTRÉMULO PARA LA CÁMARA
+        // Algunos navegadores móviles bloquean el video si el usuario no interactúa primero.
+        window.addEventListener('click', () => {
+            const video = document.querySelector('video');
+            if (video && video.paused) {
+                video.play().catch(err => console.log("Esperando interacción para reproducir video"));
+            }
+        });
+    </script>
+</body>
+</html>
