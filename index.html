@@ -1,632 +1,183 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Sólidos Geométricos en RA</title>
-
-  <!--
-    =====================================================================
-    LIBRERÍAS PRINCIPALES
-    =====================================================================
-    Se usan las versiones más estables y compatibles disponibles via CDN oficial:
-    - A-Frame 1.4.2: framework de escenas 3D/VR/AR basado en WebGL y Three.js
-    - AR.js 3.4.5: biblioteca de Realidad Aumentada para A-Frame usando marcadores
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>RA Escolar: Sólidos Geométricos</title>
     
-    NOTA IMPORTANTE: Se evita raw.githack.com porque en muchos dispositivos
-    no sirve correctamente los módulos de AR.js, causando que los sólidos
-    no aparezcan al enfocar el marcador.
-    Se usa jsDelivr como CDN alternativo confiable.
-    =====================================================================
-  -->
-  <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.2.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/@ar-js-org/ar.js@3.3.2/aframe/build/aframe-ar.js"></script>
 
-  <style>
-    /* =====================================================================
-       RESET Y BASE
-       ===================================================================== */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    <style>
+        /* Estilos generales para asegurar que la cámara ocupe toda la pantalla */
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
 
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      overflow: hidden;
-      background: #000;
-    }
+        /* ---------------------------------------------------------------------- */
+        /* INTERFAZ DE USUARIO (UI) RESPONSIVA CON SCROLL AUTOMÁTICO              */
+        /* ---------------------------------------------------------------------- */
+        #menu-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 400px; /* Evita que ocupe demasiado espacio en pantallas grandes */
+            max-height: 25vh;  /* Limita la altura al 25% de la pantalla para no tapar la RA */
+            background: rgba(25da, 255, 255, 0.85);
+            backdrop-filter: blur(8px); /* Efecto moderno de desenfoque de fondo */
+            border-radius: 15px;
+            padding: 12px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            z-index: 9999; /* Asegura que la UI se renderice SIEMPRE por encima de la cámara */
+            box-sizing: border-box;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            
+            /* REQUISITO DE SCROLL: Habilita scroll vertical si el contenido excede la altura máxima */
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch; /* Scroll suave garantizado en iOS */
+        }
 
-    /* =====================================================================
-       ESCENA AR: ocupa toda la pantalla como fondo de cámara
-       ===================================================================== */
-    a-scene {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-    }
+        /* Título del menú educativo */
+        .menu-title {
+            text-align: center;
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c3e50;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
 
-    /* =====================================================================
-       MENÚ FLOTANTE PRINCIPAL
-       
-       Posicionado en la parte inferior de la pantalla, centrado.
-       - max-height adaptable: 45vh en móvil, con scroll automático si hay
-         más botones de los que caben.
-       - overflow-y: auto activa scroll vertical cuando el contenido desborda.
-       - pointer-events: auto asegura que los botones respondan al tacto/clic
-         incluso sobre la vista de la cámara AR.
-       ===================================================================== */
-    #menu-container {
-      position: fixed;
-      bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 100;
+        /* Contenedor tipo Grid para los botones (fácilmente escalable si añades más sólidos) */
+        .grid-botones {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 2 columnas simétricas */
+            gap: 8px;
+        }
 
-      /* Ancho máximo responsivo */
-      width: min(96vw, 520px);
+        /* Estilo base de los botones interactivos táctiles */
+        .btn-solido {
+            background-color: #34495e;
+            color: white;
+            border: none;
+            padding: 12px 8px; /* Tamaño optimizado para interacción táctil (mínimo 44px de alto) */
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
 
-      /* Fondo semitransparente con blur para no tapar la cámara */
-      background: rgba(10, 10, 30, 0.82);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+        /* Efecto feedback visual al seleccionar o pasar el cursor */
+        .btn-solido:active, .btn-solido.active {
+            background-color: #2ecc71; /* Verde pedagógico de "activo" */
+            transform: scale(0.95);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
 
-      border: 1.5px solid rgba(255, 255, 255, 0.15);
-      border-radius: 18px;
-      padding: 12px 14px;
-
-      /* Scroll automático cuando hay muchos botones */
-      max-height: 45vh;
-      overflow-y: auto;
-      overflow-x: hidden;
-
-      /* Scrollbar personalizado para mejor estética */
-      scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.3) transparent;
-    }
-
-    #menu-container::-webkit-scrollbar {
-      width: 5px;
-    }
-    #menu-container::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.3);
-      border-radius: 10px;
-    }
-
-    /* Título del menú */
-    #menu-titulo {
-      color: #fff;
-      font-size: clamp(11px, 3vw, 14px);
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      text-align: center;
-      margin-bottom: 10px;
-      opacity: 0.75;
-    }
-
-    /* Grilla de botones: 2 columnas en móvil, más en pantallas grandes */
-    #botones-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-    }
-
-    /* En pantallas medianas: 4 columnas */
-    @media (min-width: 480px) {
-      #botones-grid {
-        grid-template-columns: repeat(4, 1fr);
-      }
-    }
-
-    /* =====================================================================
-       BOTONES DE SELECCIÓN DE SÓLIDOS
-       
-       - Tamaño mínimo de 44px de alto: accesibilidad táctil (WCAG)
-       - Colores diferenciados por sólido usando variables CSS
-       - Estado activo con borde brillante y fondo con color del sólido
-       ===================================================================== */
-    .btn-solido {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-
-      min-height: 64px;
-      padding: 8px 6px;
-
-      background: rgba(255, 255, 255, 0.07);
-      border: 1.5px solid rgba(255, 255, 255, 0.15);
-      border-radius: 12px;
-      cursor: pointer;
-
-      color: #e8e8f0;
-      font-size: clamp(10px, 2.5vw, 13px);
-      font-weight: 600;
-      text-align: center;
-      line-height: 1.2;
-
-      transition: background 0.2s, border-color 0.2s, transform 0.1s;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
-
-    .btn-solido .icono {
-      font-size: clamp(20px, 5vw, 26px);
-      line-height: 1;
-    }
-
-    .btn-solido:hover {
-      background: rgba(255, 255, 255, 0.14);
-      transform: translateY(-1px);
-    }
-
-    .btn-solido:active {
-      transform: scale(0.96);
-    }
-
-    /* Estado activo: el botón del sólido actualmente visible */
-    .btn-solido.activo {
-      border-color: var(--color-solido, #fff);
-      background: color-mix(in srgb, var(--color-solido, #fff) 22%, transparent);
-      box-shadow: 0 0 12px color-mix(in srgb, var(--color-solido, #fff) 40%, transparent);
-    }
-
-    /* Colores individuales por sólido */
-    .btn-solido[data-solido="cubo"]      { --color-solido: #FF6B35; }
-    .btn-solido[data-solido="esfera"]    { --color-solido: #4ECDC4; }
-    .btn-solido[data-solido="cilindro"]  { --color-solido: #9B5DE5; }
-    .btn-solido[data-solido="cono"]      { --color-solido: #F7B731; }
-
-    /* Etiqueta de instrucción inferior */
-    #instruccion {
-      color: rgba(255,255,255,0.5);
-      font-size: clamp(9px, 2.2vw, 11px);
-      text-align: center;
-      margin-top: 10px;
-    }
-  </style>
+        /* Personalización de la barra de desplazamiento (Scrollbar) para que sea discreta */
+        #menu-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        #menu-container::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+    </style>
 </head>
+
 <body>
 
-  <!-- ==================================================================
-       ESCENA DE REALIDAD AUMENTADA (A-Frame + AR.js)
-       
-       Atributos importantes de <a-scene>:
-       - embedded: necesario cuando la escena no es el único elemento de la página
-       - arjs: configura AR.js con las opciones:
-           * sourceType: webcam (usa la cámara del dispositivo)
-           * debugUIEnabled: false (oculta los controles de debug de AR.js)
-           * detectionMode: mono_and_matrix (detecta marcadores Hiro y Matrix)
-           * cameraParametersUrl: parámetros de calibración para la cámara
-       - vr-mode-ui: disabled (deshabilita el botón de VR que no necesitamos)
-       - renderer: logarithmicDepthBuffer evita z-fighting (artefactos visuales)
-  ================================================================== -->
-  <a-scene
-    embedded
-    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix;"
-    vr-mode-ui="enabled: false"
-    renderer="logarithmicDepthBuffer: true; antialias: true;"
-    loading-screen="enabled: false"
-  >
-
-    <!-- ==============================================================
-         CÁMARA AR
-         
-         - Usamos a-entity con camera en lugar de a-camera para mayor
-           compatibilidad con AR.js 3.x
-         - look-controls desactivado: en AR el marcador controla la perspectiva
-         - arjs-look-controls maneja la orientación de cámara via AR
-    ============================================================== -->
-    <a-entity camera></a-entity>
-
-    <!-- ==============================================================
-         MARCADOR HIRO
-         
-         El marcador 'hiro' es el patrón predeterminado de AR.js.
-         Para usarlo, imprime el marcador desde:
-         https://ar-js-org.github.io/AR.js/data/images/hiro.png
-         
-         Todos los sólidos son hijos de este marcador, por eso
-         aparecen "flotando" sobre él cuando la cámara lo detecta.
-    ============================================================== -->
-    <a-marker preset="hiro" id="marcador-hiro">
-
-      <!-- ============================================================
-           ILUMINACIÓN DE LA ESCENA
-           
-           Se añaden luces para que los sólidos tengan profundidad y
-           volumen visual. Sin luz ambiental + direccional, los sólidos
-           aparecerían planos o completamente oscuros.
-      ============================================================ -->
-      <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
-      <a-light type="directional" position="1 2 1" color="#ffffff" intensity="0.9"></a-light>
-      <a-light type="directional" position="-1 1 -1" color="#aaddff" intensity="0.4"></a-light>
-
-      <!-- ============================================================
-           SÓLIDO 1: CUBO
-           
-           Propiedades geométricas escolares:
-           - 6 caras cuadradas CONGRUENTES (width = height = depth)
-           - 12 aristas todas IGUALES (misma longitud)
-           - 8 vértices
-           
-           Implementación:
-           - <a-box> con width=height=depth=1 garantiza perfección cúbica
-           - scale="0.4 0.4 0.4" escala uniforme (no deforma el cubo)
-           - Color naranja #FF6B35 llamativo y diferenciado
-           
-           Aristas visibles:
-           - Componente "wireframe" de A-Frame renderiza las aristas
-             como líneas negras sobre la cara coloreada
-           
-           Animación de rotación:
-           - Eje Y (horizontal) para rotación continua y visible
-           - dur=4000ms: velocidad pedagógica, ni muy rápida ni lenta
-           - easing: linear para rotación uniforme (sin aceleración)
-           - loop: true para rotación infinita
-      ============================================================ -->
-      <a-entity id="solido-cubo" visible="true">
-        <!-- Cara sólida con color -->
-        <a-box
-          width="1" height="1" depth="1"
-          color="#FF6B35"
-          opacity="0.92"
-          position="0 0.5 0"
-          scale="0.4 0.4 0.4"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear"
-        ></a-box>
-        <!-- Aristas del cubo: wireframe superpuesto -->
-        <a-box
-          width="1" height="1" depth="1"
-          color="#1a1a1a"
-          opacity="1"
-          position="0 0.5 0"
-          scale="0.401 0.401 0.401"
-          material="wireframe: true; wireframeLinewidth: 3"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear"
-        ></a-box>
-      </a-entity>
-
-      <!-- ============================================================
-           SÓLIDO 2: ESFERA
-           
-           Propiedades geométricas escolares:
-           - Superficie perfectamente redonda
-           - Simetría radial completa en todos los planos
-           - Todos los puntos de la superficie equidistan del centro (radio)
-           
-           Implementación:
-           - <a-sphere> con radio uniforme (radius="0.5")
-           - segments-height y segments-width altos (36) para una esfera
-             suave, sin facetas visibles → representa fielmente la
-             superficie curva continua
-           - scale UNIFORME para no deformar en elipse o esferoide
-           
-           Aristas: la esfera no tiene aristas en la geometría escolar,
-           por eso NO se añade wireframe (que distorsionaría la forma).
-           En su lugar, se usa un anillo ecuatorial decorativo para
-           mostrar la "sección transversal" y ayudar al aprendizaje.
-      ============================================================ -->
-      <a-entity id="solido-esfera" visible="false">
-        <a-sphere
-          radius="0.5"
-          segments-height="36"
-          segments-width="36"
-          color="#4ECDC4"
-          opacity="0.92"
-          position="0 0.5 0"
-          scale="0.4 0.4 0.4"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear"
-        ></a-sphere>
-        <!-- Círculo ecuatorial decorativo para mostrar la simetría -->
-        <a-torus
-          radius="0.2" radius-tubular="0.006"
-          color="#1a4a48"
-          position="0 0.5 0"
-          scale="1 1 1"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear"
-        ></a-torus>
-      </a-entity>
-
-      <!-- ============================================================
-           SÓLIDO 3: CILINDRO CIRCULAR RECTO
-           
-           Propiedades geométricas escolares (CILINDRO CIRCULAR RECTO):
-           - Dos bases CIRCULARES, PLANAS, PARALELAS y CONGRUENTES
-           - Superficie lateral CURVA que une las dos bases
-           - El EJE (línea que une los centros de las bases) es
-             PERPENDICULAR a las bases → esto lo hace "recto"
-           
-           Por qué es "recto" en nuestra implementación:
-           - <a-cylinder> en A-Frame genera el cilindro con el eje
-             en dirección Y (vertical) de forma predeterminada
-           - Las bases circular superior e inferior son perpendiculares
-             al eje Y → el eje ES perpendicular a las bases
-           - height ≠ radius para distinguirlo de un cubo inscrito
-           - open-ended="false" asegura que las bases circulares
-             estén cerradas (cilindro sólido, no un tubo hueco)
-           - segments-radial alto (36) para bases circulares suaves
-           
-           Aristas visibles:
-           - Los dos círculos de las bases se destacan con torus (anillos)
-           - Esto enseña que las "aristas" del cilindro son las circunferencias
-      ============================================================ -->
-      <a-entity id="solido-cilindro" visible="false">
-        <!-- Cuerpo del cilindro -->
-        <a-cylinder
-          radius="0.4"
-          height="0.8"
-          segments-radial="36"
-          open-ended="false"
-          color="#9B5DE5"
-          opacity="0.92"
-          position="0 0.4 0"
-          scale="0.4 0.4 0.4"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 4500; easing: linear"
-        ></a-cylinder>
-        <!-- Arista circular: base inferior (circunferencia inferior) -->
-        <a-torus
-          radius="0.16" radius-tubular="0.007"
-          color="#2a004a"
-          position="0 0.24 0"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 4500; easing: linear"
-        ></a-torus>
-        <!-- Arista circular: base superior (circunferencia superior) -->
-        <a-torus
-          radius="0.16" radius-tubular="0.007"
-          color="#2a004a"
-          position="0 0.56 0"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 4500; easing: linear"
-        ></a-torus>
-      </a-entity>
-
-      <!-- ============================================================
-           SÓLIDO 4: CONO CIRCULAR RECTO
-           
-           Propiedades geométricas escolares (CONO CIRCULAR RECTO):
-           - Una BASE CIRCULAR PLANA
-           - Un VÉRTICE (ápice) ubicado exactamente sobre el CENTRO
-             de la base → el eje es PERPENDICULAR a la base
-           - Superficie lateral CURVA que conecta la base con el vértice
-           
-           Por qué es "recto" en nuestra implementación:
-           - <a-cone> en A-Frame genera el cono con:
-             * radius-bottom: radio de la base circular
-             * radius-top="0": el vértice es un punto (radio = 0)
-             * La punta está centrada exactamente sobre la base
-             * El eje Y pasa por el centro de la base y el vértice
-             → Eje PERPENDICULAR a la base = CONO CIRCULAR RECTO
-           - open-ended="false" cierra la base circular inferior
-           - segments-radial alto (36) para base circular suave
-           
-           Posicionamiento: position="0 Y 0" centra el cono sobre
-           el marcador. La Y se ajusta para que la base quede
-           sobre el marcador y el vértice apunte hacia arriba.
-      ============================================================ -->
-      <a-entity id="solido-cono" visible="false">
-        <!-- Cuerpo del cono -->
-        <a-cone
-          radius-bottom="0.45"
-          radius-top="0"
-          height="0.9"
-          segments-radial="36"
-          open-ended="false"
-          color="#F7B731"
-          opacity="0.92"
-          position="0 0.45 0"
-          scale="0.4 0.4 0.4"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear"
-        ></a-cone>
-        <!-- Arista circular: la única circunferencia de la base -->
-        <a-torus
-          radius="0.18" radius-tubular="0.007"
-          color="#5a3800"
-          position="0 0.27 0"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear"
-        ></a-torus>
-      </a-entity>
-
-    </a-marker>
-    <!-- Fin del marcador Hiro -->
-
-  </a-scene>
-  <!-- Fin de la escena AR -->
-
-
-  <!-- ==================================================================
-       MENÚ FLOTANTE DE SELECCIÓN DE SÓLIDOS
-       
-       Posicionado con CSS fixed sobre la vista de la cámara.
-       Usa pointer-events CSS para interceptar clics/toques sin
-       interferir con la escena AR subyacente.
-  ================================================================== -->
-  <div id="menu-container">
-    <div id="menu-titulo">🔷 Sólidos Geométricos</div>
-
-    <div id="botones-grid">
-
-      <!-- Botón Cubo: activo por defecto (visible al cargar) -->
-      <button
-        class="btn-solido activo"
-        data-solido="cubo"
-        onclick="mostrarSolido('cubo')"
-        aria-label="Mostrar Cubo"
-      >
-        <span class="icono">⬛</span>
-        <span>Cubo</span>
-      </button>
-
-      <!-- Botón Esfera -->
-      <button
-        class="btn-solido"
-        data-solido="esfera"
-        onclick="mostrarSolido('esfera')"
-        aria-label="Mostrar Esfera"
-      >
-        <span class="icono">🔵</span>
-        <span>Esfera</span>
-      </button>
-
-      <!-- Botón Cilindro Circular Recto -->
-      <button
-        class="btn-solido"
-        data-solido="cilindro"
-        onclick="mostrarSolido('cilindro')"
-        aria-label="Mostrar Cilindro Circular Recto"
-      >
-        <span class="icono">🥫</span>
-        <span>Cilindro</span>
-      </button>
-
-      <!-- Botón Cono Circular Recto -->
-      <button
-        class="btn-solido"
-        data-solido="cono"
-        onclick="mostrarSolido('cono')"
-        aria-label="Mostrar Cono Circular Recto"
-      >
-        <span class="icono">🔺</span>
-        <span>Cono</span>
-      </button>
-
-      <!--
-        NOTA PARA AMPLIAR:
-        Para agregar más sólidos en el futuro, sólo necesitas:
-        1. Agregar un <a-entity id="solido-NombreSolido"> en la escena AR
-        2. Agregar un <button class="btn-solido" data-solido="NombreSolido"> aquí
-        El scroll automático (overflow-y: auto) garantiza que los nuevos
-        botones siempre sean accesibles sin romper el diseño.
-      -->
-
+    <div id="menu-container">
+        <div class="menu-title">Sólidos Geométricos</div>
+        <div class="grid-botones">
+            <button class="btn-solido active" onclick="cambiarSolido('cubo')">Cubo</button>
+            <button class="btn-solido" onclick="cambiarSolido('esfera')">Esfera</button>
+            <button class="btn-solido" onclick="cambiarSolido('cilindro')">Cilindro R.</button>
+            <button class="btn-solido" onclick="cambiarSolido('cono')">Cono R.</button>
+        </div>
     </div>
 
-    <p id="instruccion">Enfoca el marcador Hiro con la cámara</p>
-  </div>
+    <a-scene embedded 
+             arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+             renderer="logarithmicDepthBuffer: true; antialias: true;">
+        
+        <a-marker preset="hiro" id="marcador-escolar">
+            
+            <a-entity id="contenedor-solidos" 
+                      position="0 0.5 0" 
+                      scale="0.4 0.4 0.4"
+                      animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
+                
+                <a-entity id="cubo" visible="true">
+                    <a-box width="1.2" height="1.2" depth="1.2" color="#e74c3c" material="opacity: 0.85; transparent: true; roughness: 0.3;"></a-box>
+                    <a-box width="1.2" height="1.2" depth="1.2" wireframe="true" wireframe-linewidth="3" color="#ffffff"></a-box>
+                </a-entity>
 
+                <a-entity id="esfera" visible="false">
+                    <a-sphere radius="0.7" segments-width="32" segments-height="32" color="#3498db" material="opacity: 0.85; transparent: true; roughness: 0.3;"></a-sphere>
+                    <a-sphere radius="0.7" segments-width="16" segments-height="16" wireframe="true" wireframe-linewidth="2" color="#ffffff"></a-sphere>
+                </a-entity>
 
-  <script>
-    // ==================================================================
-    // LÓGICA DE CAMBIO DE SÓLIDOS
-    //
-    // Objeto que mapea nombres de sólidos a sus elementos en el DOM de A-Frame.
-    // Usamos un objeto de configuración para que sea fácil añadir más
-    // sólidos en el futuro sin modificar la función principal.
-    // ==================================================================
+                <a-entity id="cilindro" visible="false">
+                    <a-cylinder radius="0.6" height="1.4" segments-radial="32" color="#f1c40f" material="opacity: 0.85; transparent: true; roughness: 0.3;"></a-cylinder>
+                    <a-cylinder radius="0.6" height="1.4" segments-radial="16" wireframe="true" wireframe-linewidth="2" color="#ffffff"></a-cylinder>
+                </a-entity>
 
-    // Lista de todos los sólidos disponibles (IDs en la escena A-Frame)
-    const SOLIDOS = {
-      cubo:     'solido-cubo',
-      esfera:   'solido-esfera',
-      cilindro: 'solido-cilindro',
-      cono:     'solido-cono'
-    };
+                <a-entity id="cono" visible="false">
+                    <a-cone radius-bottom="0.7" height="1.5" segments-radial="32" color="#9b59b6" material="opacity: 0.85; transparent: true; roughness: 0.3;"></a-cone>
+                    <a-cone radius-bottom="0.7" height="1.5" segments-radial="16" wireframe="true" wireframe-linewidth="2" color="#ffffff"></a-cyan-cone>
+                </a-entity>
 
-    // Sólido actualmente visible
-    let solidoActual = 'cubo';
+            </a-entity>
+            
+        </a-marker>
 
-    /**
-     * mostrarSolido(nombre)
-     * 
-     * Oculta el sólido actualmente visible y muestra el sólido
-     * cuyo nombre se pasa como parámetro.
-     * 
-     * Lógica:
-     * 1. Recorre todos los sólidos y establece visible="false"
-     * 2. Establece visible="true" sólo en el sólido seleccionado
-     * 3. Actualiza el estado visual de los botones (clase "activo")
-     * 4. La transición es INMEDIATA porque A-Frame respeta el atributo
-     *    "visible" de forma síncrona en el render loop de Three.js
-     * 
-     * @param {string} nombre - Clave del sólido en el objeto SOLIDOS
-     */
-    function mostrarSolido(nombre) {
-      // Validar que el sólido existe en nuestra configuración
-      if (!SOLIDOS[nombre]) {
-        console.warn('Sólido no encontrado:', nombre);
-        return;
-      }
+        <a-entity camera arjs-look-controls></a-entity>
+    </a-scene>
 
-      // Ocultar TODOS los sólidos
-      Object.keys(SOLIDOS).forEach(function(clave) {
-        var entidad = document.getElementById(SOLIDOS[clave]);
-        if (entidad) {
-          entidad.setAttribute('visible', 'false');
+    <script>
+        // Diccionario con las referencias de los ID del DOM de A-Frame
+        const solidos = {
+            cubo: document.getElementById('cubo'),
+            esfera: document.getElementById('esfera'),
+            cilindro: document.getElementById('cilindro'),
+            cono: document.getElementById('cono')
+        };
+
+        /**
+         * Maneja la alternancia de visibilidad de las figuras geométricas.
+         * Garantiza una transición inmediata donde solo un sólido es visible a la vez.
+         * @param {string} idSeleccionado - El nombre clave del sólido a mostrar.
+         */
+        function cambiarSolido(idSeleccionado) {
+            // 1. Recorrer todos los elementos del diccionario e inyectar el estado de visibilidad
+            for (const key in solidos) {
+                if (solidos.hasOwnProperty(key)) {
+                    if (key === idSeleccionado) {
+                        solidos[key].setAttribute('visible', 'true');
+                    } else {
+                        solidos[key].setAttribute('visible', 'false');
+                    }
+                }
+            }
+
+            // 2. Actualizar visualmente la UI de los botones para dar feedback táctil
+            const botones = document.querySelectorAll('.btn-solido');
+            botones.forEach(boton => {
+                boton.classList.remove('active');
+                // Si la función onclick del botón contiene la cadena del ID, se activa
+                if (boton.getAttribute('onclick').includes(idSeleccionado)) {
+                    boton.classList.add('active');
+                }
+            });
         }
-      });
-
-      // Mostrar SÓLO el sólido seleccionado
-      var entidadSeleccionada = document.getElementById(SOLIDOS[nombre]);
-      if (entidadSeleccionada) {
-        entidadSeleccionada.setAttribute('visible', 'true');
-      }
-
-      // Actualizar estado activo de los botones del menú
-      document.querySelectorAll('.btn-solido').forEach(function(btn) {
-        btn.classList.remove('activo');
-        if (btn.getAttribute('data-solido') === nombre) {
-          btn.classList.add('activo');
-        }
-      });
-
-      // Registrar el sólido actual
-      solidoActual = nombre;
-    }
-
-    // ==================================================================
-    // INICIALIZACIÓN
-    //
-    // Cuando A-Frame termina de cargar la escena, nos aseguramos de
-    // que el estado inicial sea correcto: sólo el cubo visible.
-    // Esto es un seguro por si A-Frame inicializa las entidades de forma
-    // asíncrona y cambia los atributos "visible" al montar el DOM.
-    // ==================================================================
-    document.addEventListener('DOMContentLoaded', function() {
-      // Pequeño delay para asegurar que A-Frame montó todas las entidades
-      setTimeout(function() {
-        mostrarSolido('cubo');
-      }, 300);
-    });
-
-    // ==================================================================
-    // NOTA PEDAGÓGICA SOBRE LAS ANIMACIONES DE ROTACIÓN
-    //
-    // Cada sólido usa el componente "animation" de A-Frame con:
-    //   property: rotation → anima la propiedad de rotación del objeto
-    //   to: "0 360 0"       → gira 360° alrededor del eje Y
-    //   loop: true          → repetición infinita
-    //   easing: linear      → velocidad angular constante (sin aceleración
-    //                         ni deceleración) → rotación uniforme y natural
-    //
-    // La rotación en Y (eje vertical) permite ver todas las caras del
-    // sólido desde arriba, que es la perspectiva más natural cuando
-    // el marcador está sobre una mesa o pupitre escolar.
-    //
-    // Las duraciones varían ligeramente entre sólidos para que, si se
-    // cambia rápido entre ellos, no parezcan "sincronizados".
-    // ==================================================================
-
-    // ==================================================================
-    // NOTA SOBRE ESCALA Y POSICIONAMIENTO
-    //
-    // scale="0.4 0.4 0.4" en los sólidos:
-    //   - El marcador Hiro tiene ~6cm de lado al imprimirse
-    //   - Una escala de 0.4 hace que el sólido mida ~0.4 unidades
-    //     de A-Frame, proporcional al marcador
-    //   - La escala es UNIFORME en X, Y y Z para no deformar los sólidos
-    //
-    // position="0 Y 0" en los sólidos:
-    //   - X=0, Z=0: centrado sobre el marcador
-    //   - Y > 0: el sólido flota sobre la superficie del marcador
-    //   - El valor de Y se ajusta para que la base quede sobre el marcador
-    //     y el sólido no quede enterrado en el plano del marcador
-    // ==================================================================
-  </script>
-
+    </script>
 </body>
 </html>
