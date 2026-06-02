@@ -211,54 +211,61 @@
            por una superficie lateral recta. Color naranja.
            radius-top = radius-bottom → cilindro recto.
       ─────────────────────────────────────────────── -->
-      <a-entity id="cilindro" position="0 0.25 0" scale="0.4 0.4 0.4" visible="false"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 5500; easing: linear">
+      <!-- Cilindro: bajo y ancho (height < radius*2) → silueta
+           "moneda gruesa", opuesta al cono que es alto y puntiagudo.
+           Inclinado 20° para que ambas bases circulares se vean. -->
+      <a-entity id="cilindro" position="0 0.2 0" scale="0.45 0.45 0.45" visible="false"
+        animation="property: rotation; from: 20 0 0; to: 20 360 0; loop: true; dur: 5500; easing: linear">
         <a-cylinder
           color="#ea580c"
-          opacity="0.82"
-          radius-top="0.5"
-          radius-bottom="0.5"
-          height="1"
+          opacity="0.85"
+          radius-top="0.6"
+          radius-bottom="0.6"
+          height="0.75"
           segments-radial="32"
           open-ended="false"
-          roughness="0.3">
+          roughness="0.25">
         </a-cylinder>
         <a-cylinder
           color="#ffffff"
-          opacity="0.9"
-          radius-top="0.5"
-          radius-bottom="0.5"
-          height="1"
-          segments-radial="12"
+          opacity="1"
+          radius-top="0.6"
+          radius-bottom="0.6"
+          height="0.75"
+          segments-radial="16"
           material="wireframe: true; wireframeLinewidth: 2">
         </a-cylinder>
       </a-entity>
 
       <!-- ── 4. CONO ─────────────────────────────────────
-           Base circular + superficie lateral que converge
-           en un único vértice (ápice). Color verde.
-           radius-top="0" → ápice perfecto en la cima.
+           Base circular amplia (0.7) + ápice puntudo arriba.
+           Usa <a-cone>, primitiva nativa de A-Frame, con
+           height="1.4" para que la silueta sea inconfundible
+           vs el cilindro (que es bajo y simétrico).
+           La rotación inclinada (15°) expone la base circular.
       ─────────────────────────────────────────────── -->
-      <a-entity id="cono" position="0 0.3 0" scale="0.4 0.4 0.4" visible="false"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear">
-        <a-cylinder
+      <a-entity id="cono" position="0 0.3 0" scale="0.45 0.45 0.45" visible="false"
+        animation="property: rotation; from: 15 0 0; to: 15 360 0; loop: true; dur: 5000; easing: linear">
+        <!-- Cuerpo sólido con base ancha y punta alta -->
+        <a-cone
           color="#16a34a"
-          opacity="0.82"
-          radius-top="0"
-          radius-bottom="0.5"
-          height="1.1"
-          segments-radial="28"
-          roughness="0.3">
-        </a-cylinder>
-        <a-cylinder
+          opacity="0.85"
+          radius-bottom="0.7"
+          radius-top="0.01"
+          height="1.5"
+          segments-radial="32"
+          roughness="0.25">
+        </a-cone>
+        <!-- Aristas (generatrices) del cono -->
+        <a-cone
           color="#ffffff"
-          opacity="0.9"
-          radius-top="0"
-          radius-bottom="0.5"
-          height="1.1"
-          segments-radial="10"
+          opacity="1"
+          radius-bottom="0.7"
+          radius-top="0.01"
+          height="1.5"
+          segments-radial="12"
           material="wireframe: true; wireframeLinewidth: 2">
-        </a-cylinder>
+        </a-cone>
       </a-entity>
 
       <!-- ── 5. PIRÁMIDE ────────────────────────────────
