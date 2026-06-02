@@ -1,141 +1,576 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>RA Escolar: Sólidos Geométricos</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>WebAR — Sólidos Geométricos 3D</title>
 
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <!-- ═══════════════════════════════════════════════════════════
+       LIBRERÍAS: A-Frame v1.2.0 + AR.js v3.4.5 + AR.js Gestures
+       ═══════════════════════════════════════════════════════════ -->
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
+  <script src="https://raw.githack.com/nicktarnold/aframe-gesture-handler/main/gesture-handler.js"></script>
 
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-            width: 100%;
-            height: 100%;
-        }
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+       RESET CRÍTICO — Evita canvas colapsado a 0px
+       ═══════════════════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; }
 
-        /* Contenedor del Menú Flotante */
-        #menu-container {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999; /* Obliga a la UI a estar por encima del video de la cámara */
-            width: 90%;
-            max-width: 500px;
-            background: rgba(25, 25, 25, 0.85);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 12px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: row;
-            gap: 10px;
-            overflow-x: auto; 
-            overflow-y: hidden;
-            white-space: nowrap;
-            -webkit-overflow-scrolling: touch;
-        }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: transparent;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
 
-        .btn-solido {
-            background: linear-gradient(135deg, #2c3e50, #3498db);
-            color: #ffffff;
-            border: none;
-            padding: 12px 20px;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            flex: 0 0 auto;
-            min-width: 100px;
-            text-align: center;
-        }
+    /* Canvas de A-Frame: posición absoluta, tamaño completo */
+    a-scene {
+      position: absolute !important;
+      top: 0; left: 0;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 1;
+    }
 
-        .btn-solido.active {
-            background: linear-gradient(135deg, #e74c3c, #f1c40f);
-        }
-    </style>
+    /* ═══════════════════════════════════════════════════════════
+       INTERFAZ DE USUARIO — Menú flotante superpuesto
+       ═══════════════════════════════════════════════════════════ */
+    #ui-overlay {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      z-index: 9999;
+      padding: 12px 8px 16px;
+      background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.0) 100%);
+      pointer-events: none; /* El contenedor no interfiere con AR */
+    }
+
+    /* Título del sólido activo */
+    #solid-title {
+      text-align: center;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      opacity: 0.85;
+      pointer-events: none;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+    }
+
+    /* Barra de botones horizontal con scroll táctil */
+    #btn-bar {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+      padding: 0 4px 4px;
+      pointer-events: all; /* Los botones sí capturan eventos */
+      /* Ocultar scrollbar visual pero mantener funcionalidad */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    #btn-bar::-webkit-scrollbar { display: none; }
+
+    /* Botón individual */
+    .btn-solid {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-radius: 40px;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, transform 0.15s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-solid:active { transform: scale(0.95); }
+
+    /* Estado activo */
+    .btn-solid.active {
+      background: rgba(255,255,255,0.9);
+      border-color: #fff;
+      color: #111;
+    }
+
+    /* Ícono de color del sólido */
+    .btn-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    /* Instrucciones de gestos */
+    #gesture-hint {
+      text-align: center;
+      color: rgba(255,255,255,0.55);
+      font-size: 11px;
+      margin-top: 8px;
+      pointer-events: none;
+      letter-spacing: 0.05em;
+    }
+
+    /* Indicador de marcador */
+    #marker-hint {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(6px);
+      color: #fff;
+      font-size: 12px;
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.2);
+      pointer-events: none;
+      letter-spacing: 0.04em;
+    }
+  </style>
 </head>
+<body>
 
-<body style="margin: 0px; overflow: hidden;">
+  <!-- ═══════════════════════════════════════════════════════
+       INDICADORES DE UI
+       ═══════════════════════════════════════════════════════ -->
+  <div id="marker-hint">📷 Apunta al marcador <strong>HIRO</strong></div>
 
-    <div id="menu-container">
-        <button class="btn-solido active" onclick="cambiarSolido('cubo')">Cubo</button>
-        <button class="btn-solido" onclick="cambiarSolido('esfera')">Esfera</button>
-        <button class="btn-solido" onclick="cambiarSolido('cilindro')">Cilindro</button>
-        <button class="btn-solido" onclick="cambiarSolido('cono')">Cono</button>
+  <!-- Menú inferior -->
+  <div id="ui-overlay">
+    <div id="solid-title">CUBO</div>
+    <div id="btn-bar">
+      <button class="btn-solid active" onclick="showSolid('cubo')" id="btn-cubo">
+        <span class="btn-dot" style="background:#FF6B35;"></span> Cubo
+      </button>
+      <button class="btn-solid" onclick="showSolid('esfera')" id="btn-esfera">
+        <span class="btn-dot" style="background:#4ECDC4;"></span> Esfera
+      </button>
+      <button class="btn-solid" onclick="showSolid('cilindro')" id="btn-cilindro">
+        <span class="btn-dot" style="background:#FFE66D;"></span> Cilindro
+      </button>
+      <button class="btn-solid" onclick="showSolid('cono')" id="btn-cono">
+        <span class="btn-dot" style="background:#C77DFF;"></span> Cono
+      </button>
     </div>
+    <div id="gesture-hint">✌️ Pellizca para zoom · ☝️ Desliza para rotar</div>
+  </div>
 
-    <a-scene embedded 
-             arjs="sourceType: webcam; sourceWidth:1280; sourceHeight:720; displayWidth: 1280; displayHeight: 720; debugUIEnabled: false;" 
-             vr-mode-ui="enabled: false">
-        
-        <a-marker preset="hiro">
-            <a-entity id="grupo-rotacion" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
-                
-                <a-entity id="cubo" visible="true">
-                    <a-box position="0 0.5 0" scale="0.4 0.4 0.4" color="#00C853">
-                        <a-box scale="1.01 1.01 1.01" material="wireframe: true; wireframeLineWidth: 3; color: #FFFFFF"></a-box>
-                    </a-box>
-                </a-entity>
+  <!-- ═══════════════════════════════════════════════════════
+       ESCENA A-FRAME + AR.js
+       embedded: fuerza el canvas a respetar el CSS del DOM
+       ═══════════════════════════════════════════════════════ -->
+  <a-scene
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+    vr-mode-ui="enabled: false"
+    renderer="logarithmicDepthBuffer: true; precision: medium;"
+    gesture-detector
+    style="position:absolute;top:0;left:0;width:100vw;height:100vh;">
 
-                <a-entity id="esfera" visible="false">
-                    <a-sphere position="0 0.5 0" radius="0.25" color="#FFea00">
-                        <a-sphere radius="0.251" material="wireframe: true; wireframeLineWidth: 1.5; color: #000000"></a-sphere>
-                    </a-sphere>
-                </a-entity>
+    <!-- ───── ACTIVOS (fuentes, etc.) ───── -->
+    <a-assets></a-assets>
 
-                <a-entity id="cilindro" visible="false">
-                    <a-cylinder position="0 0.5 0" radius="0.2" height="0.5" color="#00B0FF">
-                        <a-cylinder radius="0.201" height="0.501" material="wireframe: true; wireframeLineWidth: 2; color: #FFFFFF"></a-cylinder>
-                    </a-cylinder>
-                </a-entity>
+    <!-- ═══════════════════════════════════════════════════════
+         MARCADOR HIRO
+         ═══════════════════════════════════════════════════════ -->
+    <a-marker preset="hiro" id="hiro-marker">
 
-                <a-entity id="cono" visible="false">
-                    <a-cone position="0 0.5 0" radius-bottom="0.25" radius-top="0" height="0.5" color="#AA00FF">
-                        <a-cone radius-bottom="0.251" radius-top="0" height="0.501" material="wireframe: true; wireframeLineWidth: 2; color: #FFFFFF"></a-cone>
-                    </a-cone>
-                </a-entity>
+      <!-- ────────────────────────────────────────────────────
+           ENTIDAD MAESTRA — gesture-handler controla zoom/rotación
+           Todos los sólidos y sus anotaciones viven aquí dentro
+           ──────────────────────────────────────────────────── -->
+      <a-entity
+        id="master-group"
+        gesture-handler="minScale: 0.1; maxScale: 1.5"
+        position="0 0 0"
+        scale="1 1 1">
 
-            </a-entity>
-        </a-marker>
+        <!-- ════════════════════════════════════════════════
+             SÓLIDO 1: CUBO
+             Todas las caras iguales, sin deformación
+             ════════════════════════════════════════════════ -->
+        <a-entity id="grupo-cubo" visible="true">
 
-        <a-entity camera></a-entity>
-    </a-scene>
+          <!-- Cuerpo del cubo: dimensiones estrictamente iguales -->
+          <a-box
+            width="0.4" height="0.4" depth="0.4"
+            position="0 0.2 0"
+            color="#FF6B35"
+            material="side: double; roughness: 0.3; metalness: 0.1;"
+            shadow="cast: true">
+          </a-box>
 
-    <script>
-        const solidosIds = ['cubo', 'esfera', 'cilindro', 'cono'];
+          <!-- Wireframe del cubo (aristas): malla contrastante ligeramente mayor -->
+          <a-box
+            width="0.405" height="0.405" depth="0.405"
+            position="0 0.2 0"
+            material="wireframe: true; color: #fff; opacity: 0.7;"
+            shadow="cast: false">
+          </a-box>
 
-        function cambiarSolido(idSeleccionado) {
-            solidosIds.forEach(id => {
-                const elemento = document.getElementById(id);
-                if (elemento) {
-                    elemento.setAttribute('visible', id === idSeleccionado ? 'true' : 'false');
-                }
-            });
+          <!-- ── ANOTACIONES DEL CUBO ── -->
 
-            const botones = document.querySelectorAll('.btn-solido');
-            botones.forEach(boton => {
-                boton.classList.remove('active');
-                if (boton.getAttribute('onclick').includes(idSeleccionado)) {
-                    boton.classList.add('active');
-                    boton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                }
-            });
-        }
+          <!-- Etiqueta: VÉRTICE — apunta a esquina superior-frontal-derecha -->
+          <a-entity position="0.35 0.5 0.35">
+            <a-text value="Vértice" color="#FFE66D" align="center"
+              width="1.4" look-at="[camera]" font="roboto"
+              material="depthTest: false;">
+            </a-text>
+            <a-line start="0 -0.04 0" end="-0.15 -0.18 -0.15"
+              color="#FFE66D" opacity="0.8" linewidth="2">
+            </a-line>
+          </a-entity>
 
-        // CONTROL DE SEGURIDAD EXTRÉMULO PARA LA CÁMARA
-        // Algunos navegadores móviles bloquean el video si el usuario no interactúa primero.
-        window.addEventListener('click', () => {
-            const video = document.querySelector('video');
-            if (video && video.paused) {
-                video.play().catch(err => console.log("Esperando interacción para reproducir video"));
-            }
+          <!-- Etiqueta: ARISTA — apunta al borde frontal superior -->
+          <a-entity position="-0.35 0.5 0.05">
+            <a-text value="Arista" color="#90E0EF" align="center"
+              width="1.4" look-at="[camera]" font="roboto">
+            </a-text>
+            <a-line start="0 -0.04 0" end="0.15 -0.18 0.15"
+              color="#90E0EF" opacity="0.8" linewidth="2">
+            </a-line>
+          </a-entity>
+
+          <!-- Etiqueta: CARA — apunta a la cara frontal -->
+          <a-entity position="0 0.2 0.45">
+            <a-text value="Cara" color="#FF9F1C" align="center"
+              width="1.4" look-at="[camera]" font="roboto">
+            </a-text>
+            <a-line start="0 0 -0.04" end="0 0 -0.18"
+              color="#FF9F1C" opacity="0.8" linewidth="2">
+            </a-line>
+          </a-entity>
+
+        </a-entity>
+        <!-- /grupo-cubo -->
+
+
+        <!-- ════════════════════════════════════════════════
+             SÓLIDO 2: ESFERA
+             Simetría radial perfecta, mismo radio en todos los ejes
+             ════════════════════════════════════════════════ -->
+        <a-entity id="grupo-esfera" visible="false">
+
+          <!-- Cuerpo de la esfera -->
+          <a-sphere
+            radius="0.22"
+            position="0 0.22 0"
+            color="#4ECDC4"
+            material="roughness: 0.2; metalness: 0.15; side: double;"
+            shadow="cast: true">
+          </a-sphere>
+
+          <!-- Wireframe de la esfera: mayor radio -->
+          <a-sphere
+            radius="0.225"
+            position="0 0.22 0"
+            material="wireframe: true; color: #fff; opacity: 0.5;">
+          </a-sphere>
+
+          <!-- ── ANOTACIONES DE LA ESFERA ── -->
+
+          <!-- Etiqueta: CENTRO -->
+          <a-entity position="0.4 0.22 0">
+            <a-text value="Centro" color="#FFE66D" align="center"
+              width="1.4" look-at="[camera]" font="roboto">
+            </a-text>
+            <a-line start="-0.04 0 0" end="-0.2 0 0"
+              color="#FFE66D" opacity="0.8" linewidth="2">
+            </a-line>
+            <!-- Punto visual del centro -->
+            <a-sphere radius="0.015" position="-0.2 0 0" color="#FFE66D"></a-sphere>
+          </a-entity>
+
+          <!-- Etiqueta: RADIO -->
+          <a-entity position="-0.05 0.22 0">
+            <!-- Línea que representa el radio desde el centro hasta la superficie -->
+            <a-line start="0 0 0" end="0 0 0.22"
+              color="#FF6B6B" opacity="1" linewidth="3">
+            </a-line>
+            <a-text value="Radio" color="#FF6B6B" align="center"
+              width="1.4" look-at="[camera]" font="roboto"
+              position="0 0.15 0.22">
+            </a-text>
+          </a-entity>
+
+          <!-- Etiqueta: SUPERFICIE CURVA -->
+          <a-entity position="0 0.5 0.2">
+            <a-text value="Superficie\nCurva" color="#90E0EF" align="center"
+              width="1.6" look-at="[camera]" font="roboto">
+            </a-text>
+            <a-line start="0 -0.06 0" end="0 -0.2 0"
+              color="#90E0EF" opacity="0.8" linewidth="2">
+            </a-line>
+          </a-entity>
+
+        </a-entity>
+        <!-- /grupo-esfera -->
+
+
+        <!-- ════════════════════════════════════════════════
+             SÓLIDO 3: CILINDRO CIRCULAR RECTO
+             radio-top = radio-bottom, eje perpendicular a bases
+             ════════════════════════════════════════════════ -->
+        <a-entity id="grupo-cilindro" visible="false">
+
+          <!-- Cuerpo del cilindro: mismos radios superior e inferior -->
+          <a-cylinder
+            radius="0.18"
+            height="0.4"
+            position="0 0.2 0"
+            color="#FFE66D"
+            material="roughness: 0.3; metalness: 0.05; side: double;"
+            shadow="cast: true">
+          </a-cylinder>
+
+          <!-- Wireframe del cilindro -->
+          <a-cylinder
+            radius="0.185"
+            height="0.405"
+            position="0 0.2 0"
+            material="wireframe: true; color: #222; opacity: 0.6;">
+          </a-cylinder>
+
+          <!-- ── ANOTACIONES DEL CILINDRO ── -->
+
+          <!-- Etiqueta: BASE SUPERIOR -->
+          <a-entity position="0.35 0.42 0">
+            <a-text value="Base Superior" color="#FF6B6B" align="center"
+              width="1.6" look-at="[camera]" font="roboto">
+            </a-text>
+            <a-line start="-0.04 0 0" end="-0.22 0 0"
+              color="#FF6B6B" opacity="0.8" linewidth="2">
+            </a-line>
+          </a-entity>
+
+          <!-- Etiqueta: ALTURA — línea vertical con texto -->
+          <a-entity position="-0.38 0.2 0">
+            <a-text value="Altura" color="#fff" align="center"
+              width="1.4" look-at="[camera]" font="roboto">
+            </a-text>
+            <!-- Línea vertical que representa la altura -->
+            <a-line start="0.06 -0.2 0" end="0.06 0.2 0"
+              color="#fff" opacity="0.9" linewidth="3">
+            </a-line>
+            <!-- Marcas horizontales en los extremos -->
+            <a-line start="0.03 -0.2 0" end="0.1 -0.2 0" color="#fff" opacity="0.9"></a-line>
+            <a-line start="0.03 0.2 0" end="0.1 0.2 0" color="#fff" opacity="0.9"></a-line>
+          </a-entity>
+
+          <!-- Etiqueta: SUPERFICIE LATERAL -->
+          <a-entity position="0 0.2 0.38">
+            <a-text value="Superficie\nLateral" color="#4ECDC4" align="center"
+              width="1.6" look-at="[camera]" font="roboto">
+            </a-text>
+            <a-line start="0 -0.06 0" end="0 -0.12 -0.1"
+              color="#4ECDC4" opacity="0.8" linewidth="2">
+            </a-line>
+          </a-entity>
+
+        </a-entity>
+        <!-- /grupo-cilindro -->
+
+
+        <!-- ════════════════════════════════════════════════
+             SÓLIDO 4: CONO CIRCULAR RECTO
+             radius-top="0" → vértice exactamente sobre el centro de la base
+             ════════════════════════════════════════════════ -->
+        <a-entity id="grupo-cono" visible="false">
+
+          <!-- Cuerpo del cono: radius-top fijado en 0 para vértice exacto -->
+          <a-cone
+            radius-bottom="0.22"
+            radius-top="0"
+            height="0.45"
+            position="0 0.225 0"
+            color="#C77DFF"
+            material="roughness: 0.3; metalness: 0.1; side: double;"
+            shadow="cast: true">
+          </a-cone>
+
+          <!-- Wireframe del cono -->
+          <a-cone
+            radius-bottom="0.225"
+            radius-top="0.005"
+            height="0.455"
+            position="0 0.225 0"
+            material="wireframe: true; color: #fff; opacity: 0.55;">
+          </a-cone>
+
+          <!-- ── ANOTACIONES DEL CONO ── -->
+
+          <!-- Etiqueta: VÉRTICE (Cúspide) — en el ápice del cono -->
+          <a-entity position="0.35 0.5 0">
+            <a-text value="Vértice\n(Cúspide)" color="#FFE66D" align="center"
+              width="1.6" look-at="[camera]" font="roboto">
+            </a-text>
+            <a-line start="-0.04 -0.08 0" end="-0.3 -0.14 0"
+              color="#FFE66D" opacity="0.8" linewidth="2">
+            </a-line>
+          </a-entity>
+
+          <!-- Etiqueta: ALTURA — línea desde cúspide a centro de base -->
+          <a-entity position="-0.4 0.225 0">
+            <a-text value="Altura" color="#fff" align="center"
+              width="1.4" look-at="[camera]" font="roboto">
+            </a-text>
+            <a-line start="0.06 -0.225 0" end="0.06 0.225 0"
+              color="#fff" opacity="0.9" linewidth="3">
+            </a-line>
+            <a-line start="0.03 -0.225 0" end="0.1 -0.225 0" color="#fff" opacity="0.9"></a-line>
+            <a-line start="0.03 0.225 0" end="0.1 0.225 0" color="#fff" opacity="0.9"></a-line>
+          </a-entity>
+
+          <!-- Etiqueta: BASE -->
+          <a-entity position="0.4 0.02 0">
+            <a-text value="Base" color="#FF6B6B" align="center"
+              width="1.4" look-at="[camera]" font="roboto">
+            </a-text>
+            <a-line start="-0.04 0 0" end="-0.22 0 0"
+              color="#FF6B6B" opacity="0.8" linewidth="2">
+            </a-line>
+          </a-entity>
+
+          <!-- Etiqueta: GENERATRIZ — línea desde vértice a borde de la base -->
+          <a-entity position="-0.05 0.225 0">
+            <!-- La generatriz va del vértice (top) a la circunferencia de la base -->
+            <a-line start="0 0.225 0" end="0.22 -0.225 0"
+              color="#FF9F1C" opacity="1" linewidth="3">
+            </a-line>
+            <a-text value="Generatriz" color="#FF9F1C" align="center"
+              width="1.6" look-at="[camera]" font="roboto"
+              position="-0.22 0.1 0">
+            </a-text>
+          </a-entity>
+
+        </a-entity>
+        <!-- /grupo-cono -->
+
+      </a-entity>
+      <!-- /master-group -->
+
+    </a-marker>
+    <!-- /hiro-marker -->
+
+    <!-- Cámara principal -->
+    <a-entity camera></a-entity>
+
+  </a-scene>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       JAVASCRIPT — Lógica de la UI y forzado de cámara
+       ═══════════════════════════════════════════════════════════ -->
+  <script>
+    // ──────────────────────────────────────────────────────────
+    // Mapa de sólidos: id del grupo 3D → metadatos de UI
+    // ──────────────────────────────────────────────────────────
+    const SOLIDOS = {
+      cubo:     { titulo: 'CUBO',     btnId: 'btn-cubo'     },
+      esfera:   { titulo: 'ESFERA',   btnId: 'btn-esfera'   },
+      cilindro: { titulo: 'CILINDRO', btnId: 'btn-cilindro' },
+      cono:     { titulo: 'CONO',     btnId: 'btn-cono'     },
+    };
+
+    // Sólido visible actualmente
+    let solidoActivo = 'cubo';
+
+    /**
+     * showSolid(nombre)
+     * Oculta todos los sólidos y muestra únicamente el seleccionado.
+     * Reinicia la escala del grupo maestro para que no arrastre el zoom anterior.
+     */
+    function showSolid(nombre) {
+      if (!SOLIDOS[nombre]) return;
+
+      // 1. Ocultar todos los grupos y desactivar botones
+      Object.keys(SOLIDOS).forEach(key => {
+        const grupo = document.getElementById('grupo-' + key);
+        if (grupo) grupo.setAttribute('visible', 'false');
+
+        const btn = document.getElementById(SOLIDOS[key].btnId);
+        if (btn) btn.classList.remove('active');
+      });
+
+      // 2. Mostrar el grupo seleccionado
+      const grupoActivo = document.getElementById('grupo-' + nombre);
+      if (grupoActivo) grupoActivo.setAttribute('visible', 'true');
+
+      // 3. Marcar el botón activo
+      const btnActivo = document.getElementById(SOLIDOS[nombre].btnId);
+      if (btnActivo) btnActivo.classList.add('active');
+
+      // 4. Actualizar título en la UI
+      document.getElementById('solid-title').textContent = SOLIDOS[nombre].titulo;
+
+      // 5. Reiniciar escala del grupo maestro → evita deformación entre sólidos
+      const master = document.getElementById('master-group');
+      if (master) master.setAttribute('scale', '1 1 1');
+
+      solidoActivo = nombre;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // FORZADO DE CÁMARA
+    // Algunos navegadores móviles bloquean el video por políticas
+    // de privacidad. Este listener fuerza el play tras un breve delay.
+    // ──────────────────────────────────────────────────────────
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        // Busca el elemento de video generado por AR.js
+        const videos = document.querySelectorAll('video');
+        videos.forEach(v => {
+          v.muted = true; // Necesario para autoplay en móviles
+          v.play().catch(err => {
+            console.warn('[WebAR] No se pudo reproducir el video de la cámara:', err);
+          });
         });
-    </script>
+      }, 1200); // Espera 1.2s a que AR.js inicialice el stream
+    });
+
+    // ──────────────────────────────────────────────────────────
+    // EVENTO: cuando la escena A-Frame esté lista, ocultar el
+    // hint del marcador si el marcador es detectado
+    // ──────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      const scene = document.querySelector('a-scene');
+      const marker = document.getElementById('hiro-marker');
+      const hint = document.getElementById('marker-hint');
+
+      if (marker) {
+        // Ocultar hint cuando el marcador sea encontrado
+        marker.addEventListener('markerFound', () => {
+          hint.style.opacity = '0';
+          hint.style.transition = 'opacity 0.4s';
+        });
+        // Mostrar hint cuando el marcador se pierda
+        marker.addEventListener('markerLost', () => {
+          hint.style.opacity = '1';
+        });
+      }
+    });
+  </script>
+
 </body>
 </html>
